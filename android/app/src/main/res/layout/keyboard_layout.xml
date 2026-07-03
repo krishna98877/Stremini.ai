@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#000000"
+    android:paddingTop="4dp"
+    android:paddingBottom="2dp">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <!-- Top toolbar for standard and AI actions -->
+        <LinearLayout
+            android:id="@+id/main_toolbar_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingHorizontal="4dp"
+            android:layout_marginBottom="8dp"
+            android:gravity="center_vertical"
+            android:visibility="visible">
+
+            <!-- Universal Tools Row: Settings | Mic | AI‑toggle | Clipboard | Emoji -->
+            <LinearLayout
+                android:id="@+id/universal_tools_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:weightSum="5">
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+                    <ImageView
+                        android:id="@+id/action_settings"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_settings"
+                        android:background="@android:color/transparent"
+                        android:padding="5dp"
+                        android:scaleType="centerInside"
+                        android:layout_gravity="center"/>
+                </FrameLayout>
+
+                <!-- Mic moved here from the z‑row -->
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+                    <ImageView
+                        android:id="@+id/key_voice"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_mic"
+                        android:background="@android:color/transparent"
+                        android:padding="5dp"
+                        android:scaleType="centerInside"
+                        android:layout_gravity="center"
+                        app:tint="#FFFFFF"/>
+                </FrameLayout>
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+                    <ImageView
+                        android:id="@+id/action_ai_toggle"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_ai_tool"
+                        android:background="@android:color/transparent"
+                        android:padding="5dp"
+                        android:scaleType="centerInside"
+                        android:layout_gravity="center"
+                        app:tint="#FFFFFF"/>
+                </FrameLayout>
+
+                <FrameLayout
+                    android:id="@+id/clipboard_icon_container"
+                    android:layout_width="0dp"
+                    android:layout_height="28dp"
+                    android:layout_weight="1">
+                    
+                    <ImageView
+                        android:id="@+id/action_toolbar_clipboard_on"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_clipboard"
+                        android:background="@android:color/transparent"
+                        android:padding="5dp"
+                        android:scaleType="centerInside"
+                        android:visibility="visible"
+                        android:layout_gravity="center"
+                        app:tint="#FFFFFF"/>
+                    
+                    <ImageView
+                        android:id="@+id/action_toolbar_clipboard_off"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_content_paste_off"
+                        android:background="@android:color/transparent"
+                        android:padding="5dp"
+                        android:scaleType="centerInside"
+                        android:visibility="gone"
+                        android:layout_gravity="center"
+                        app:tint="#888888"/>
+                </FrameLayout>
+
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1">
+                    <ImageView
+                        android:id="@+id/action_toolbar_emoji"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:src="@drawable/ic_emoji"
+                        android:background="@android:color/transparent"
+                        android:padding="4dp"
+                        android:scaleType="centerInside"
+                        android:layout_gravity="center"
+                        app:tint="#FFFFFF"/>
+                </FrameLayout>
+            </LinearLayout>
+
+            <!-- Inline Paste Suggestion (Hidden by default) -->
+            <LinearLayout
+                android:id="@+id/inline_paste_suggestion"
+                android:layout_width="wrap_content"
+                android:layout_height="32dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/chip_background"
+                android:paddingHorizontal="8dp"
+                android:layout_marginEnd="4dp"
+                android:visibility="gone">
+
+                <!-- Icon/Thumbnail -->
+                <ImageView
+                    android:id="@+id/inline_paste_thumbnail"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_clipboard"
+                    android:scaleType="centerCrop"
+                    android:layout_marginEnd="6dp"
+                    android:contentDescription="Paste Icon"
+                    app:tint="#FFFFFF"/>
+
+                <TextView
+                    android:id="@+id/inline_paste_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tap to paste"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:maxWidth="160dp"/>
+            </LinearLayout>
+
+            <HorizontalScrollView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:scrollbars="none"
+                android:clipToPadding="false">
+
+                <LinearLayout
+                    android:id="@+id/quick_actions_container"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+                    
+
+                    <TextView
+                        android:id="@+id/action_improve"
+                        style="@style/KeyboardChip"
+                        android:text="Enhance"
+                        android:background="@drawable/chip_background"
+                        android:layout_marginEnd="4dp"/>
+
+                    <TextView
+                        android:id="@+id/action_complete"
+                        style="@style/KeyboardChip"
+                        android:text="Complete"
+                        android:background="@drawable/chip_background"
+                        android:layout_marginEnd="4dp"/>
+                        
+                    <TextView
+                        android:id="@+id/action_tone"
+                        style="@style/KeyboardChip"
+                        android:text="Tone changer"
+                        android:background="@drawable/chip_background"
+                        android:layout_marginEnd="4dp"/>
+
+                    <TextView
+                        android:id="@+id/action_translate"
+                        style="@style/KeyboardChip"
+                        android:text="Translator"
+                        android:background="@drawable/chip_background"/>
+                        
+                </LinearLayout>
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <!-- Settings Menu (Google Keyboard Style) -->
+
+    </FrameLayout>
+
+    <!-- Panel overlay container (emoji, language, tools) -->
+    <FrameLayout
+        android:id="@+id/panel_container"
+        android:layout_width="match_parent"
+        android:layout_height="222dp"
+        android:visibility="gone"/>
+
+    <LinearLayout
+        android:id="@+id/main_keyboard_body"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="3dp">
+
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_1" android:text="1"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_2" android:text="2"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_3" android:text="3"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_4" android:text="4"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_5" android:text="5"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_6" android:text="6"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_7" android:text="7"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_8" android:text="8"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_9" android:text="9"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_0" android:text="0"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="3dp">
+
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_q" android:text="q"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_w" android:text="w"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_e" android:text="e"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_r" android:text="r"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_t" android:text="t"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_y" android:text="y"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_u" android:text="u"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_i" android:text="i"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_o" android:text="o"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_p" android:text="p"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="3dp"
+            android:paddingHorizontal="16dp">
+
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_a" android:text="a"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_s" android:text="s"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_d" android:text="d"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_f" android:text="f"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_g" android:text="g"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_h" android:text="h"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_j" android:text="j"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_k" android:text="k"/>
+            <TextView style="@style/KeyboardKey" android:id="@+id/key_l" android:text="l"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="3dp">
+
+            <TextView
+                android:id="@+id/key_shift"
+                style="@style/KeyboardSpecialKey"
+                android:text="⇧"
+                android:layout_weight="1.3"/>
+
+            <!-- Mic key removed — moved to toolbar -->
+
+            <TextView style="@style/KeyboardKey" android:text="z" android:id="@+id/key_z"/>
+            <TextView style="@style/KeyboardKey" android:text="x" android:id="@+id/key_x"/>
+            <TextView style="@style/KeyboardKey" android:text="c" android:id="@+id/key_c"/>
+            <TextView style="@style/KeyboardKey" android:text="v" android:id="@+id/key_v"/>
+            <TextView style="@style/KeyboardKey" android:text="b" android:id="@+id/key_b"/>
+            <TextView style="@style/KeyboardKey" android:text="n" android:id="@+id/key_n"/>
+            <TextView style="@style/KeyboardKey" android:text="m" android:id="@+id/key_m"/>
+
+            <TextView
+                android:id="@+id/key_backspace"
+                style="@style/KeyboardSpecialKey"
+                android:text="⌫"
+                android:layout_weight="1.3"/>
+        </LinearLayout>
+
+        <!-- Bottom row: [?123] [space] [;] [enter]
+             key_dot_semicolon: tap = period (.), long-press = comma (,) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/key_symbols"
+                style="@style/KeyboardSpecialKey"
+                android:text="@string/key_symbols_label"
+                android:textSize="12sp"
+                android:layout_weight="1.4"/>
+
+            <TextView
+                android:id="@+id/key_at"
+                style="@style/KeyboardSpecialKey"
+                android:text="\@"
+                android:layout_weight="1.0" />
+
+            <TextView
+                android:id="@+id/key_space"
+                style="@style/KeyboardKey"
+                android:text="space"
+                android:textColor="#AAAAAA"
+                android:textSize="12sp"
+                android:layout_weight="4.0"/>
+
+            <!-- Shows ';' but: tap = '.', long-press = ',' -->
+            <TextView
+                android:id="@+id/key_dot_semicolon"
+                style="@style/KeyboardSpecialKey"
+                android:text=";"
+                android:layout_weight="1.0"/>
+
+            <TextView
+                android:id="@+id/key_enter"
+                style="@style/KeyboardActionKey"
+                android:text="⏎"
+                android:layout_weight="1.4"/>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

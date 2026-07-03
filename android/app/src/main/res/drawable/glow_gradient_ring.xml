@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Outer glow halo -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#0D3A5C"/>
+            <size android:width="72dp" android:height="72dp"/>
+        </shape>
+    </item>
+
+    <!-- Cyan ring -->
+    <item
+        android:top="2dp" android:bottom="2dp"
+        android:left="2dp" android:right="2dp">
+        <shape android:shape="oval">
+            <stroke
+                android:width="2.5dp"
+                android:color="#23A6E2"/>
+            <solid android:color="#000000"/>
+            <size android:width="68dp" android:height="68dp"/>
+        </shape>
+    </item>
+
+    <!-- Inner dark circle (logo area) -->
+    <item
+        android:top="5dp" android:bottom="5dp"
+        android:left="5dp" android:right="5dp">
+        <shape android:shape="oval">
+            <solid android:color="#0A0A0A"/>
+            <size android:width="62dp" android:height="62dp"/>
+        </shape>
+    </item>
+
+</layer-list>

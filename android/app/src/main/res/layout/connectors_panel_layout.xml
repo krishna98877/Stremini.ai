@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/connectors_panel"
+    android:layout_width="280dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/glass_panel_bg"
+    android:padding="24dp"
+    android:elevation="8dp"
+    android:visibility="gone">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Connectors"
+            android:textColor="#ffffff"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.5" />
+
+        <!-- Close button -->
+        <ImageView
+            android:id="@+id/btn_close_connectors"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:tint="#6B7280"
+            android:padding="4dp"
+            android:contentDescription="Close"
+            android:scaleType="fitCenter" />
+    </LinearLayout>
+
+    <!-- Connected apps list -->
+    <LinearLayout
+        android:id="@+id/connected_apps_list"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="16dp" />
+
+    <!-- No apps connected placeholder -->
+    <LinearLayout
+        android:id="@+id/no_connectors_placeholder"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:padding="20dp">
+
+        <ImageView
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:src="@drawable/ic_connectors"
+            android:tint="#2A2A2A"
+            android:layout_marginBottom="12dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No apps connected yet"
+            android:textColor="#555555"
+            android:textSize="13sp"
+            android:textAlignment="center" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Connect apps below to use\nthem with the AI chatbot"
+            android:textColor="#555555"
+            android:textSize="12sp"
+            android:textAlignment="center"
+            android:lineSpacingExtra="2dp"
+            android:layout_marginTop="4dp" />
+    </LinearLayout>
+
+    <!-- Connect Composio button -->
+    <LinearLayout
+        android:id="@+id/connect_composio_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/glass_input_bg"
+        android:padding="14dp"
+        android:gravity="center_vertical"
+        android:layout_marginTop="4dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/ic_composio"
+            android:tint="#ffffff"
+            android:layout_marginEnd="10dp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Connect Composio"
+            android:textColor="#ffffff"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_arrow_right"
+            android:tint="#00F0FF"
+            android:layout_gravity="center_vertical" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Stremini AI</string>
+    <!-- Keyboard symbols toggle key label — '?' must be escaped as \? in strings.xml -->
+    <string name="key_symbols_label">\?123</string>
+</resources>

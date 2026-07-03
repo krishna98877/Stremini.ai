@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="key_clipboard" type="id" />
+    <item name="btn_chat" type="id" />
+    <item name="btn_automation" type="id" />
+    <item name="btn_ai" type="id" />
+    <item name="btn_emoji" type="id" />
+    <item name="btn_connectors" type="id" />
+    <item name="btn_connectors_toggle" type="id" />
+    <item name="connectors_active_dot" type="id" />
+    <item name="connected_apps_list" type="id" />
+    <item name="no_connectors_placeholder" type="id" />
+    <item name="connect_composio_row" type="id" />
+    <item name="btn_close_connectors" type="id" />
+</resources>

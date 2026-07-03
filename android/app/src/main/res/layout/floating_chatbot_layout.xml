@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="300dp"
+    android:layout_height="420dp"
+    android:orientation="vertical"
+    android:background="@drawable/glass_panel_bg"
+    android:layout_gravity="bottom|end"
+    android:elevation="8dp"
+    android:outlineProvider="none"
+    android:clipToOutline="true"
+    android:padding="8dp">
+
+    <!-- Header - draggable -->
+    <LinearLayout
+        android:id="@+id/chat_header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#10000000"
+        android:padding="12dp"
+        android:paddingBottom="12dp"
+        android:gravity="center_vertical"
+        android:showDividers="none">
+
+        <!-- Logo -->
+        <FrameLayout
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:background="@drawable/glass_icon_bg">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/new_logo"
+                android:scaleType="centerInside"
+                android:padding="3dp"
+                android:contentDescription="Stremini Logo" />
+        </FrameLayout>
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Stremini AI"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="normal"
+            android:letterSpacing="0.3"
+            android:layout_marginStart="10dp" />
+
+        <!-- Close Button -->
+        <ImageView
+            android:id="@+id/btn_close_chat"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:tint="#6B7280"
+            android:padding="4dp"
+            android:contentDescription="Close"
+            android:scaleType="fitCenter" />
+    </LinearLayout>
+
+    <!-- Messages Container -->
+    <ScrollView
+        android:id="@+id/scroll_messages"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#00000000"
+        android:padding="12dp"
+        android:scrollbars="vertical"
+        android:fadeScrollbars="false"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:id="@+id/messages_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="bottom" />
+    </ScrollView>
+
+    <!-- Voice status bar -->
+    <LinearLayout
+        android:id="@+id/voice_status_bar"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="14dp"
+        android:paddingEnd="14dp"
+        android:background="@drawable/glass_input_bg"
+        android:layout_margin="8dp"
+        android:visibility="gone">
+
+        <View
+            android:id="@+id/voice_dot"
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/circle_bg_blue"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:id="@+id/tv_voice_partial"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Listening..."
+            android:textColor="#00f6ff"
+            android:textSize="12sp"
+            android:fontFamily="sans-serif-medium" />
+
+        <TextView
+            android:id="@+id/btn_cancel_voice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✕"
+            android:textColor="#64748B"
+            android:textSize="14sp"
+            android:padding="4dp" />
+    </LinearLayout>
+
+    <!-- Input area with connectors toggle + mic + send -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/glass_input_bg"
+        android:layout_margin="8dp"
+        android:padding="6dp"
+        android:gravity="center_vertical">
+
+        <!-- Connectors toggle button (wire icon like Manus/ChatGPT plugin) -->
+        <FrameLayout
+            android:id="@+id/btn_connectors_toggle"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@android:color/transparent"
+            android:layout_marginEnd="6dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/connectors_toggle_icon"
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:src="@drawable/ic_connectors"
+                android:tint="#555555"
+                android:layout_gravity="center"
+                android:scaleType="fitCenter" />
+
+            <!-- Active indicator dot -->
+            <View
+                android:id="@+id/connectors_active_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:background="@drawable/connector_active_indicator"
+                android:layout_gravity="bottom|end"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- Voice Input Button -->
+        <ImageView
+            android:id="@+id/btn_voice_input"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@drawable/ic_mic"
+            android:tint="#00f6ff"
+            android:background="@android:color/transparent"
+            android:padding="6dp"
+            android:contentDescription="Voice Input"
+            android:layout_marginEnd="6dp"
+            android:scaleType="fitCenter" />
+
+        <!-- Text Input -->
+        <EditText
+            android:id="@+id/et_chat_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Ask anything..."
+            android:textColorHint="#555555"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:background="@android:color/transparent"
+            android:padding="10dp"
+            android:maxLines="3"
+            android:inputType="textMultiLine|textCapSentences" />
+
+        <!-- Send Button -->
+        <ImageView
+            android:id="@+id/btn_send_message"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:src="@android:drawable/ic_menu_send"
+            android:tint="#00f6ff"
+            android:background="@drawable/glass_button_accent"
+            android:contentDescription="Send"
+            android:scaleType="fitCenter" />
+    </LinearLayout>
+
+</LinearLayout>

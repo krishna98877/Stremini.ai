@@ -1,0 +1,41 @@
+name: stremini_chatbot
+description: "A Flutter chatbot application for Stremini AI"
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^3.0.3
+  cupertino_icons: ^1.0.2
+  http: ^1.5.0
+  # NEW DEPENDENCIES
+  image_picker: ^1.0.7
+  file_picker: ^8.0.0
+  mime: ^1.0.5
+  shared_preferences: ^2.2.2
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.1
+  syncfusion_flutter_pdf: ^33.1.47
+  url_launcher: ^6.3.1
+  
+dev_dependencies:
+  flutter_launcher_icons: ^0.14.4
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - lib/img/logo.jpg
+    - lib/img/home_icon.png
+    - lib/img/question_mark_icon.png
+    - lib/img/settings_icon.png
