@@ -32,6 +32,7 @@ class MainActivityChannelRegistry(
         val connectComposioService: (String) -> Unit,
         val disconnectComposioService: (String) -> Unit,
         val getConnectedServices: () -> Map<String, List<String>>,
+        val executeComposioAutomation: (suspend (String) -> String)? = null,
     )
 
     fun register(flutterEngine: FlutterEngine) {
@@ -113,6 +114,22 @@ class MainActivityChannelRegistry(
                         // Convert Map<String, List<String>> to Map<String, Boolean> for Dart
                         val flat = services.mapValues { it.value.isNotEmpty() }
                         result.success(flat)
+                    }
+                    "executeAutomation" -> {
+                        val instruction = call.argument<String>("instruction") ?: ""
+                        val automationFn = actions.executeComposioAutomation
+                        if (automationFn != null) {
+                            kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                try {
+                                    val response = automationFn(instruction)
+                                    result.success(response)
+                                } catch (e: Exception) {
+                                    result.error("AUTOMATION_ERROR", e.message, null)
+                                }
+                            }
+                        } else {
+                            result.error("NOT_AVAILABLE", "Automation not available", null)
+                        }
                     }
                     else -> result.notImplemented()
                 }

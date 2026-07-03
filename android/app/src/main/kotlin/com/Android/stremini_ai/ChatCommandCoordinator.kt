@@ -6,7 +6,13 @@ import kotlinx.coroutines.launch
 /**
  * Routes user chat messages to either:
  * 1. Groq API (general conversation) — the brain
- * 2. Composio automation (when a service keyword is detected & Composio is configured)
+ * 2. Composio automation (when a service keyword is detected & developer key is configured)
+ *
+ * KEY ARCHITECTURE DIFFERENCE from before:
+ * - The Composio developer key is embedded/configured by the app developer
+ * - End users NEVER provide any API key
+ * - Users just tap "Connect [Service]" in the Automations panel
+ * - Once connected, chat messages involving that service are auto-routed to Composio
  *
  * When Composio is used, Groq is also called to parse the natural language
  * into a specific Composio actionId + structured parameters.
@@ -31,7 +37,7 @@ class ChatCommandCoordinator(
             val detectedService = composioClient.detectService(sanitizedMessage)
 
             if (composioClient.isConfigured() && detectedService != null) {
-                // Route to Composio automation (with Groq intent parsing)
+                // Developer key is configured and service detected → try Composio
                 onBotMessage("Working on it via ${detectedService.name}...")
                 composioClient.executeAutomation(
                     instruction = sanitizedMessage,
@@ -42,13 +48,30 @@ class ChatCommandCoordinator(
                         onBotMessage(reply)
                     }
                     .onFailure { error ->
-                        // Fallback to Groq with context about the failed automation
-                        val fallbackMessage = "The user tried to do something with ${detectedService.name} but the automation failed: ${error.message}. Help them with their request: $sanitizedMessage"
-                        sendToBackend(fallbackMessage, historyToSend)
+                        // If the service isn't connected, suggest connecting it
+                        val errorMsg = error.message ?: ""
+                        if (errorMsg.contains("not connected", ignoreCase = true) ||
+                            errorMsg.contains("isn't connected", ignoreCase = true)) {
+                            // Service detected but not yet connected by the user
+                            val helpMessage = "The user wants to use ${detectedService.name} but hasn't connected it yet. " +
+                                "Tell them: Tap the plug icon in the chat bar, find ${detectedService.name}, and tap Connect. " +
+                                "They'll log in with their own ${detectedService.name} account — no API key needed. " +
+                                "Their request: $sanitizedMessage"
+                            sendToBackend(helpMessage, historyToSend)
+                        } else {
+                            // Other Composio errors — fallback to Groq
+                            val fallbackMessage = "The user tried to do something with ${detectedService.name} " +
+                                "but the automation failed: $errorMsg. " +
+                                "Help them with their request as best you can: $sanitizedMessage"
+                            sendToBackend(fallbackMessage, historyToSend)
+                        }
                     }
             } else if (detectedService != null && !composioClient.isConfigured()) {
-                // Service detected but Composio not connected
-                val helpMessage = "The user wants to use ${detectedService.name} but Composio automation is not set up. Tell them to: 1) Go to Settings, 2) Enter their Composio API key from composio.dev/settings, 3) Connect ${detectedService.name}. Their request: $sanitizedMessage"
+                // Service detected but developer key not configured
+                val helpMessage = "The user wants to use ${detectedService.name} automation. " +
+                    "Tell them: Automation features are being set up. They can connect ${detectedService.name} " +
+                    "by tapping the plug icon in the chat bar. " +
+                    "Their request: $sanitizedMessage"
                 sendToBackend(helpMessage, historyToSend)
             } else {
                 // Normal AI chat via Groq

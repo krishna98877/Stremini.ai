@@ -74,6 +74,15 @@
             </intent-filter>
         </activity>
 
+        <!-- Composio Auth Activity: WebView for managed OAuth (FLAG_SECURE) -->
+        <activity
+            android:name=".ComposioAuthActivity"
+            android:exported="false"
+            android:label="Connect Service"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:configChanges="orientation|screenSize"
+            android:windowSoftInputMode="adjustResize"/>
+
         <!-- Keyboard Settings Activity: FLAG_SECURE prevents screenshots/screen recording -->
         <activity
             android:name=".KeyboardSettingsActivity"

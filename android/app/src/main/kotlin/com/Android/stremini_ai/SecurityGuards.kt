@@ -14,6 +14,9 @@ private val TRUSTED_BACKEND_HOSTS = setOf(
     // Composio — managed auth automation
     "backend.composio.dev",
     "connect.composio.dev",
+    // Composio OAuth pages (loaded in ComposioAuthActivity WebView)
+    "auth.composio.dev",
+    "app.composio.dev",
 )
 
 /** Maximum response body size: 512 KB. Prevents OOM from malicious/buggy server. */

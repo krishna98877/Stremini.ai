@@ -36,24 +36,34 @@ class MainActivity : FlutterActivity() {
 
     private val microphonePermissionRequestCode = MIC_REQUEST_CODE
 
-    // ── Deep-link callback: Composio sends stremini://composio?code=xxx ──────
+    // ── Deep-link callback: Composio sends stremini://composio?provider=xxx&status=success ──────
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         val data = intent.data ?: return
         if (data.scheme == "stremini" && data.host == "composio") {
+            val provider = data.getQueryParameter("provider")
+            val status = data.getQueryParameter("status")
             val code = data.getQueryParameter("code")
-            if (code != null && code.length in 16..512 && code.matches(Regex("^[a-zA-Z0-9\-._~]+\$"))) {
-                Log.i(TAG, "Composio auth code received")
-                // Save the auth code; the Flutter side will exchange it for a token
-                getSharedPreferences(COMPOSIO_PREFS, Context.MODE_PRIVATE)
-                    .edit()
-                    .putString("composio_auth_code", code)
-                    .apply()
-                // Notify Flutter via the composio channel
-                _composioEventSink?.success(mapOf("event" to "auth_code", "code" to code))
-                Toast.makeText(this, "Composio connected! Finishing setup...", Toast.LENGTH_LONG).show()
-            } else {
-                Log.w(TAG, "Rejected invalid composio auth code (length or format)")
+
+            Log.i(TAG, "Composio callback: provider=$provider, status=$status")
+
+            // Notify the overlay service to refresh connected services
+            val refreshIntent = Intent(this, ChatOverlayService::class.java).apply {
+                action = "com.Android.stremini_ai.REFRESH_COMPOSIO"
+                putExtra("provider", provider ?: "")
+                putExtra("status", status ?: "")
+            }
+            startService(refreshIntent)
+
+            // Notify Flutter via the composio event channel
+            _composioEventSink?.success(mapOf(
+                "event" to "connection_success",
+                "serviceId" to (provider ?: ""),
+                "status" to (status ?: "success")
+            ))
+
+            if (status == "success" || status == "connected" || code != null) {
+                Toast.makeText(this, "Service connected! You can now use it in chat.", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -94,6 +104,12 @@ class MainActivity : FlutterActivity() {
                     // Return cached value synchronously to avoid ANR from runBlocking.
                     // The overlay service refreshes this cache periodically.
                     _cachedConnectedServices
+                },
+                executeComposioAutomation = { instruction ->
+                    composioClient.executeAutomation(
+                        instruction = instruction,
+                        groqClient = null // Will use keyword-based fallback from MainActivity
+                    ).getOrThrow()
                 },
             )
         ).register(flutterEngine)

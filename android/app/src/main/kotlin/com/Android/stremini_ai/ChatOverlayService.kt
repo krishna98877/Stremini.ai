@@ -515,59 +515,125 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         updateConnectorsToggleIcon()
     }
 
-    /** Build 13 service rows in the scrollable list */
+    /** Build 13 service items in a 2-column grid */
     private fun buildServicesList() {
-        val servicesList = connectorsView?.findViewById<LinearLayout>(R.id.services_list) ?: return
-        servicesList.removeAllViews()
+        val grid = connectorsView?.findViewById<LinearLayout>(R.id.services_grid) ?: return
+        grid.removeAllViews()
 
-        for (svc in ComposioClient.ALL_SERVICES) {
-            val row = LayoutInflater.from(this).inflate(R.layout.service_row_item, servicesList, false)
+        var currentRow: LinearLayout? = null
+        var itemsInRow = 0
 
-            // Icon — colored circle with first letter
-            val iconLetter = row.findViewById<TextView>(R.id.service_icon_letter)
-            iconLetter.text = svc.name.first().toString()
-            iconLetter.setBackgroundColor(svc.color.toInt())
-
-            // Name
-            row.findViewById<TextView>(R.id.service_name).text = svc.name
-
-            // Status dot (hidden until we check)
-            val statusDot = row.findViewById<View>(R.id.service_status_dot)
-            statusDot.visibility = View.GONE
-
-            // Action button
-            val actionBtn = row.findViewById<TextView>(R.id.service_action_btn)
-            actionBtn.text = "Connect"
-            actionBtn.setOnClickListener {
-                if (actionBtn.text == "Connected") {
-                    // Disconnect
-                    actionBtn.text = "Connect"
-                    actionBtn.setTextColor(CYAN)
-                    statusDot.visibility = View.GONE
-                    serviceScope.launch { composioClient.disconnectService(svc.id) }
-                    Toast.makeText(this, "${svc.name} disconnected", Toast.LENGTH_SHORT).show()
-                } else {
-                    // Connect — open Composio managed auth
-                    composioClient.connectService(svc.id)
+        for ((index, svc) in ComposioClient.ALL_SERVICES.withIndex()) {
+            // Start a new row every 2 items
+            if (itemsInRow == 0) {
+                currentRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    setPadding(4, 4, 4, 4)
                 }
             }
 
-            // Store reference for async updates
-            row.tag = svc.id
-            servicesList.addView(row)
+            val cell = buildServiceCell(svc)
+            currentRow?.addView(cell)
+
+            itemsInRow++
+            if (itemsInRow == 2 || index == ComposioClient.ALL_SERVICES.lastIndex) {
+                // Row is full (2 items) or this is the last item
+                grid.addView(currentRow)
+                itemsInRow = 0
+            }
         }
     }
 
-    /** Update the "Connected" / "Not connected" status text */
+    /** Build a single service cell (card) for the grid */
+    private fun buildServiceCell(svc: ComposioClient.ServiceDef): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(8, 12, 8, 12)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                marginEnd = 4
+                bottomMargin = 4
+            }
+            // Tag for async status updates
+            tag = svc.id
+
+            // Colored icon circle
+            val icon = TextView(this@ChatOverlayService).apply {
+                text = svc.iconChar
+                setTextColor(Color.WHITE)
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                val size = (36 * resources.displayMetrics.density).toInt()
+                layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                    bottomMargin = (6 * resources.displayMetrics.density).toInt()
+                }
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(svc.color.toInt())
+                }
+            }
+            addView(icon)
+
+            // Service name
+            val name = TextView(this@ChatOverlayService).apply {
+                text = svc.name
+                setTextColor(Color.parseColor("#E0E0E0"))
+                textSize = 11f
+                gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { bottomMargin = (4 * resources.displayMetrics.density).toInt() }
+            }
+            addView(name)
+
+            // Connection status text
+            val status = TextView(this@ChatOverlayService).apply {
+                text = "Connect"
+                setTextColor(CYAN)
+                textSize = 10f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                id = View.generateViewId()
+                tag = "status_label"
+            }
+            addView(status)
+
+            // Click handler
+            setOnClickListener {
+                if (status.text == "Connected") {
+                    status.text = "Connect"
+                    status.setTextColor(CYAN)
+                    icon.background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(svc.color.toInt())
+                    }
+                    serviceScope.launch { composioClient.disconnectService(svc.id) }
+                    Toast.makeText(this@ChatOverlayService, "${svc.name} disconnected", Toast.LENGTH_SHORT).show()
+                } else {
+                    // Open Composio managed auth in WebView
+                    composioClient.connectService(svc.id)
+                }
+            }
+        }
+    }
+
+    /** Update the status text in the header */
     private fun updateComposioStatusText() {
         val statusTv = connectorsView?.findViewById<TextView>(R.id.tv_composio_status) ?: return
         val banner = connectorsView?.findViewById<LinearLayout>(R.id.composio_connect_banner) ?: return
-        if (composioClient.isConfigured()) {
-            statusTv.text = "Connected"
+        val connectedCount = serviceConnectionState.values.count { it }
+        if (connectedCount > 0) {
+            statusTv.text = "$connectedCount connected"
             statusTv.setTextColor(CYAN)
             banner.visibility = View.GONE
         } else {
-            statusTv.text = "Not connected"
+            statusTv.text = "13 services"
             statusTv.setTextColor(Color.parseColor("#6B7280"))
             banner.visibility = View.VISIBLE
         }
@@ -578,29 +644,32 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         if (!composioClient.isConfigured()) return
         try {
             val connected = composioClient.getConnectedServices()
-            val servicesList = connectorsView?.findViewById<LinearLayout>(R.id.services_list) ?: return
+            val grid = connectorsView?.findViewById<LinearLayout>(R.id.services_grid) ?: return
 
-            for (i in 0 until servicesList.childCount) {
-                val row = servicesList.getChildAt(i)
-                val svcId = row.tag as? String ?: continue
-                val isConnected = connected.containsKey(svcId)
-                serviceConnectionState[svcId] = isConnected
+            for (rowIdx in 0 until grid.childCount) {
+                val row = grid.getChildAt(rowIdx) as? LinearLayout ?: continue
+                for (cellIdx in 0 until row.childCount) {
+                    val cell = row.getChildAt(cellIdx)
+                    val svcId = cell.tag as? String ?: continue
+                    val isConnected = connected.containsKey(svcId)
+                    serviceConnectionState[svcId] = isConnected
 
-                // Update UI on main thread
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    val actionBtn = row.findViewById<TextView>(R.id.service_action_btn)
-                    val statusDot = row.findViewById<View>(R.id.service_status_dot)
-                    if (isConnected) {
-                        actionBtn.text = "Connected"
-                        actionBtn.setTextColor(Color.parseColor("#25D366"))
-                        statusDot.visibility = View.VISIBLE
-                        statusDot.background = getDrawable(R.drawable.connector_active_indicator)
-                    } else {
-                        actionBtn.text = "Connect"
-                        actionBtn.setTextColor(CYAN)
-                        statusDot.visibility = View.GONE
+                    // Update UI on main thread
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        val statusLabel = cell.findViewWithTag<TextView>("status_label")
+                        if (isConnected) {
+                            statusLabel?.text = "Connected"
+                            statusLabel?.setTextColor(Color.parseColor("#25D366"))
+                        } else {
+                            statusLabel?.text = "Connect"
+                            statusLabel?.setTextColor(CYAN)
+                        }
                     }
                 }
+            }
+            // Update header status
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                updateComposioStatusText()
             }
         } catch (_: Exception) {}
     }

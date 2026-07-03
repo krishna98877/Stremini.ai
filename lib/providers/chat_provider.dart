@@ -169,11 +169,13 @@ class ChatNotifier extends AsyncNotifier<List<Message>> {
 
         reply = await composio.sendAutomationInstruction(trimmed);
       } else if (detectedService != null && !composio.isConnected) {
-        // Service detected but Composio not connected
+        // Service detected but Composio not configured yet
         removeTypingIndicator();
         reply = 'I detected you want to use ${detectedService.name}. '
-            'To enable automation, connect Composio first: go to the Settings '
-            'menu (gear icon) and connect your services.';
+            'To enable automation, tap the plug icon in the chat bar, '
+            'find ${detectedService.name}, and tap "Connect". '
+            "You'll log in with your own ${detectedService.name} account "
+            '— no API key needed.';
       } else {
         // Normal Groq chat
         final history = _getHistory(withUser);
