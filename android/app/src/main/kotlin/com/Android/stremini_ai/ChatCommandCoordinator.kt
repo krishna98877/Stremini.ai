@@ -36,43 +36,40 @@ class ChatCommandCoordinator(
             // Check if this should go to Composio automation
             val detectedService = composioClient.detectService(sanitizedMessage)
 
-            if (composioClient.isConfigured() && detectedService != null) {
-                // Developer key is configured and service detected → try Composio
-                onBotMessage("Working on it via ${detectedService.name}...")
-                composioClient.executeAutomation(
-                    instruction = sanitizedMessage,
-                    groqClient = backendClient.groq
-                )
-                    .onSuccess { reply ->
-                        sessionHistory.add(mapOf("role" to "assistant", "content" to reply))
-                        onBotMessage(reply)
-                    }
-                    .onFailure { error ->
-                        // If the service isn't connected, suggest connecting it
-                        val errorMsg = error.message ?: ""
-                        if (errorMsg.contains("not connected", ignoreCase = true) ||
-                            errorMsg.contains("isn't connected", ignoreCase = true)) {
-                            // Service detected but not yet connected by the user
-                            val helpMessage = "The user wants to use ${detectedService.name} but hasn't connected it yet. " +
-                                "Tell them: Tap the plug icon in the chat bar, find ${detectedService.name}, and tap Connect. " +
-                                "They'll log in with their own ${detectedService.name} account — no API key needed. " +
-                                "Their request: $sanitizedMessage"
-                            sendToBackend(helpMessage, historyToSend)
-                        } else {
+            if (detectedService != null) {
+                // Composio is always configured (embedded key).
+                // If the service is connected, route to Composio automation.
+                // If not connected, suggest connecting it.
+                val isConnected = runCatching {
+                    composioClient.isServiceConnected(detectedService.id)
+                }.getOrDefault(false)
+
+                if (isConnected) {
+                    // Service connected → route to Composio
+                    onBotMessage("Working on it via ${detectedService.name}...")
+                    composioClient.executeAutomation(
+                        instruction = sanitizedMessage,
+                        groqClient = backendClient.groq
+                    )
+                        .onSuccess { reply ->
+                            sessionHistory.add(mapOf("role" to "assistant", "content" to reply))
+                            onBotMessage(reply)
+                        }
+                        .onFailure { error ->
                             // Other Composio errors — fallback to Groq
                             val fallbackMessage = "The user tried to do something with ${detectedService.name} " +
-                                "but the automation failed: $errorMsg. " +
+                                "but the automation failed: ${error.message}. " +
                                 "Help them with their request as best you can: $sanitizedMessage"
                             sendToBackend(fallbackMessage, historyToSend)
                         }
-                    }
-            } else if (detectedService != null && !composioClient.isConfigured()) {
-                // Service detected but developer key not configured
-                val helpMessage = "The user wants to use ${detectedService.name} automation. " +
-                    "Tell them: Automation features are being set up. They can connect ${detectedService.name} " +
-                    "by tapping the plug icon in the chat bar. " +
-                    "Their request: $sanitizedMessage"
-                sendToBackend(helpMessage, historyToSend)
+                } else {
+                    // Service detected but not connected by the user yet
+                    val helpMessage = "The user wants to use ${detectedService.name} but hasn't connected it yet. " +
+                        "Tell them: Tap the plug icon in the chat bar, find ${detectedService.name}, and tap Connect. " +
+                        "They'll log in with their own ${detectedService.name} account — no API key needed. " +
+                        "Their request: $sanitizedMessage"
+                    sendToBackend(helpMessage, historyToSend)
+                }
             } else {
                 // Normal AI chat via Groq
                 sendToBackend(sanitizedMessage, historyToSend)
