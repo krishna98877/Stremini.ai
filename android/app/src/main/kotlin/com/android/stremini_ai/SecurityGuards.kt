@@ -1,4 +1,4 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -110,9 +110,12 @@ class RateLimitInterceptor(private val rateLimiter: RateLimiter) : Interceptor {
     }
 }
 
-/** Shared rate limiters — 30 chat / 60 keyboard requests per 30 seconds. */
-private val chatRateLimiter = RateLimiter(maxRequests = 30, windowMs = 30_000L)
-private val keyboardRateLimiter = RateLimiter(maxRequests = 60, windowMs = 30_000L)
+/** Shared rate limiters — 30 chat / 60 keyboard / 30 Groq-chat / 60 Groq-keyboard requests per 30s */
+private val chatRateLimiter       = RateLimiter(maxRequests = 30, windowMs = 30_000L)
+private val keyboardRateLimiter   = RateLimiter(maxRequests = 60, windowMs = 30_000L)
+private val groqChatRateLimiter    = RateLimiter(maxRequests = 30, windowMs = 30_000L)
+private val groqKeyboardRateLimiter = RateLimiter(maxRequests = 60, windowMs = 30_000L)
+private val configRateLimiter     = RateLimiter(maxRequests = 10, windowMs = 30_000L)
 
 fun secureHttpClient(
     connectTimeoutSeconds: Long,
@@ -120,8 +123,12 @@ fun secureHttpClient(
     useCase: String = "chat",
 ): OkHttpClient {
     val rateLimiter = when (useCase) {
-        "keyboard" -> keyboardRateLimiter
-        else -> chatRateLimiter
+        "keyboard"          -> keyboardRateLimiter
+        "groq_keyboard"     -> groqKeyboardRateLimiter
+        "composio",
+        "composio_execute"  -> chatRateLimiter
+        "config"            -> configRateLimiter
+        else                -> chatRateLimiter
     }
     return OkHttpClient.Builder()
         .addInterceptor(TrustedHostInterceptor())

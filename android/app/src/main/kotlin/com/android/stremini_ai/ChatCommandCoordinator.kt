@@ -1,7 +1,8 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.util.Collections
 
 /**
  * Routes user chat messages to either:
@@ -23,13 +24,26 @@ class ChatCommandCoordinator(
     val composioClient: ComposioClient,
     private val onBotMessage: (String) -> Unit,
 ) {
-    private val sessionHistory = mutableListOf<Map<String, String>>()
+    companion object {
+        private const val MAX_HISTORY_SIZE = 20
+    }
+
+    // Thread-safe history (Bug 6 fix)
+    private val sessionHistory: MutableList<Map<String, String>> =
+        Collections.synchronizedList(mutableListOf())
+
+    // Unified add + trim (Bug 7 fix)
+    private fun addToHistory(role: String, content: String) {
+        sessionHistory.add(mapOf("role" to role, "content" to content))
+        while (sessionHistory.size > MAX_HISTORY_SIZE) {
+            sessionHistory.removeAt(0)
+        }
+    }
 
     fun processUserMessage(userMessage: String) {
         scope.launch {
             val sanitizedMessage = sanitizeUserInput(userMessage)
-            sessionHistory.add(mapOf("role" to "user", "content" to sanitizedMessage))
-            if (sessionHistory.size > 20) sessionHistory.removeAt(0)
+            addToHistory("user", sanitizedMessage)
 
             val historyToSend = sessionHistory.dropLast(1)
 
@@ -37,6 +51,15 @@ class ChatCommandCoordinator(
             val detectedService = composioClient.detectService(sanitizedMessage)
 
             if (detectedService != null) {
+                // Bug 10 fix: confirm automation intent via LLM before routing
+                val isAutomationIntent = confirmAutomationIntent(sanitizedMessage, detectedService.name)
+
+                if (!isAutomationIntent) {
+                    // Keyword was coincidental — treat as normal chat
+                    sendToBackend(sanitizedMessage, historyToSend)
+                    return@launch
+                }
+
                 // Composio is always configured (embedded key).
                 // If the service is connected, route to Composio automation.
                 // If not connected, suggest connecting it.
@@ -52,7 +75,7 @@ class ChatCommandCoordinator(
                         groqClient = backendClient.groq
                     )
                         .onSuccess { reply ->
-                            sessionHistory.add(mapOf("role" to "assistant", "content" to reply))
+                            addToHistory("assistant", reply)
                             onBotMessage(reply)
                         }
                         .onFailure { error ->
@@ -80,13 +103,32 @@ class ChatCommandCoordinator(
     private suspend fun sendToBackend(message: String, history: List<Map<String, String>>) {
         backendClient.sendChatMessage(message, history)
             .onSuccess { reply ->
-                sessionHistory.add(mapOf("role" to "assistant", "content" to reply))
+                addToHistory("assistant", reply)
                 onBotMessage(reply)
             }
             .onFailure { error ->
                 sessionHistory.removeLastOrNull()
                 onBotMessage(error.message ?: "Something went wrong. Please try again.")
             }
+    }
+
+    /**
+     * Bug 10 fix: Ask Groq whether this message is a genuine automation intent
+     * or just a casual mention of a service name.
+     */
+    private suspend fun confirmAutomationIntent(message: String, serviceName: String): Boolean {
+        val prompt = """Does this message represent a clear intent to perform an action
+using $serviceName (send, post, read, create, search, upload, etc.)?
+Message: "$message"
+Reply with only YES or NO."""
+
+        return runCatching {
+            backendClient.sendChatMessage(prompt, emptyList())
+                .getOrDefault("NO")
+                .trim()
+                .uppercase()
+                .startsWith("YES")
+        }.getOrDefault(true) // If LLM call fails, allow automation (fail-open)
     }
 
     fun clearHistory() {

@@ -122,8 +122,8 @@
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.Android.stremini_ai.TOGGLE_BUBBLE"/>
-                <action android:name="com.Android.stremini_ai.STOP_SERVICE"/>
+                <action android:name="com.android.stremini_ai.TOGGLE_BUBBLE"/>
+                <action android:name="com.android.stremini_ai.STOP_SERVICE"/>
             </intent-filter>
         </receiver>
 

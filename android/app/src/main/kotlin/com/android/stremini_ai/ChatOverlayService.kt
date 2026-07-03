@@ -1,4 +1,4 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -53,10 +53,10 @@ import kotlin.math.sin
 class ChatOverlayService : Service(), View.OnTouchListener {
 
     companion object {
-        const val ACTION_SEND_MESSAGE  = "com.Android.stremini_ai.SEND_MESSAGE"
+        const val ACTION_SEND_MESSAGE  = "com.android.stremini_ai.SEND_MESSAGE"
         const val EXTRA_MESSAGE        = "message"
-        const val ACTION_TOGGLE_BUBBLE = "com.Android.stremini_ai.TOGGLE_BUBBLE"
-        const val ACTION_STOP_SERVICE  = "com.Android.stremini_ai.STOP_SERVICE"
+        const val ACTION_TOGGLE_BUBBLE = "com.android.stremini_ai.TOGGLE_BUBBLE"
+        const val ACTION_STOP_SERVICE  = "com.android.stremini_ai.STOP_SERVICE"
         private const val NOTIFICATION_ID = 1
         private const val CHANNEL_ID      = "chat_head_service"
         val CYAN       = Color.parseColor("#00F6FF")
@@ -151,10 +151,25 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         // Initialize Groq brain with API key
         aiBackendClient = AIBackendClient(this)
         if (!aiBackendClient.isConfigured()) {
-            // Groq API key assembled from parts to avoid secret scanning in source
-            val k = "gsk_" + "FpcUvx5O" + "ZYJcsjPndH" + "dGWGdyb3FY" +
-                    "FPlSRNXzYtQ" + "wKLTRaL9Ec2" + "yg"
-            aiBackendClient.setGroqApiKey(k)
+            // Fetch key from backend at first launch (keys must never be in APK)
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    val response = secureHttpClient(10, 15, "config")
+                        .newCall(
+                            okhttp3.Request.Builder()
+                                .url("https://your-backend.workers.dev/api/config")
+                                .get()
+                                .build()
+                        ).execute()
+                    val json = org.json.JSONObject(response.body?.string() ?: "{}")
+                    val groqKey = json.optString("groq_key")
+                    if (groqKey.isNotBlank()) {
+                        aiBackendClient.setGroqApiKey(groqKey)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("ChatOverlayService", "Failed to fetch config", e)
+                }
+            }
         }
 
         startForeground(NOTIFICATION_ID, buildNotification())
@@ -168,7 +183,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         chatCommandCoordinator  = ChatCommandCoordinator(
             scope         = serviceScope,
             backendClient = aiBackendClient,
-            composioClient = ComposioClient(this),
+            composioClient = ComposioClient(this, serviceScope),
             onBotMessage  = { message -> addMessageToChatbot(message, isUser = false) }
         )
         composioClient = chatCommandCoordinator.composioClient
@@ -1015,8 +1030,23 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         serviceScope.cancel()
         stopChatVoiceInput()
         try { unregisterReceiver(controlReceiver) } catch (_: Exception) {}
-        hideFloatingChatbot()
-        if (::overlayView.isInitialized && overlayView.windowToken != null) windowManager.removeView(overlayView)
-        if (isConnectorsVisible) hideConnectorsPanel()
+
+        // Force-remove chat panel regardless of visibility state
+        floatingChatView?.let {
+            try { windowManager.removeView(it) } catch (_: Exception) {}
+            floatingChatView = null
+            floatingChatParams = null
+        }
+
+        // Always try to remove connectors panel (flag could be wrong due to animation race)
+        connectorsView?.let {
+            try { windowManager.removeView(it) } catch (_: Exception) {}
+            connectorsView = null
+        }
+        isConnectorsVisible = false
+
+        if (::overlayView.isInitialized && overlayView.windowToken != null) {
+            try { windowManager.removeView(overlayView) } catch (_: Exception) {}
+        }
     }
 }

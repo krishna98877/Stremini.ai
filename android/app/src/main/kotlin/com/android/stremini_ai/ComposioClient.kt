@@ -1,11 +1,13 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -34,7 +36,12 @@ import java.net.URLEncoder
  *
  * Get your developer key: https://composio.dev/settings → API Keys
  */
-class ComposioClient(private val context: Context) {
+class ComposioClient(
+    private val context: Context,
+    private val externalScope: CoroutineScope? = null
+) {
+
+    private val workScope get() = externalScope ?: CoroutineScope(Dispatchers.IO)
 
     companion object {
         private const val TAG = "ComposioClient"
@@ -220,7 +227,7 @@ class ComposioClient(private val context: Context) {
             return
         }
 
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        workScope.launch(Dispatchers.IO) {
             try {
                 val apiKey = getDeveloperApiKey()
                 val body = JSONObject().apply {
@@ -255,7 +262,7 @@ class ComposioClient(private val context: Context) {
 
                     if (authUrl != null) {
                         // Open in ComposioAuthActivity (WebView) — NOT external browser
-                        kotlinx.coroutines.Dispatchers.Main.immediate {
+                        withContext(Dispatchers.Main) {
                             val intent = Intent(context, ComposioAuthActivity::class.java).apply {
                                 putExtra(ComposioAuthActivity.EXTRA_AUTH_URL, authUrl)
                                 putExtra(ComposioAuthActivity.EXTRA_SERVICE_NAME,
@@ -273,7 +280,7 @@ class ComposioClient(private val context: Context) {
                         }
                     } else {
                         // No URL returned — redirect to Composio dashboard for manual connection
-                        kotlinx.coroutines.Dispatchers.Main.immediate {
+                        withContext(Dispatchers.Main) {
                             Toast.makeText(
                                 context,
                                 "Opening Composio dashboard to connect ${ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId}...",
@@ -284,13 +291,13 @@ class ComposioClient(private val context: Context) {
                     }
                 } else {
                     Log.e(TAG, "connectService(${serviceId}) failed: ${response.code}")
-                    kotlinx.coroutines.Dispatchers.Main.immediate {
+                    withContext(Dispatchers.Main) {
                         Toast.makeText(context, "Connection failed (error ${response.code}). Please try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "connectService(${serviceId}) error", e)
-                kotlinx.coroutines.Dispatchers.Main.immediate {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Network error. Check your connection.", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -345,7 +352,7 @@ class ComposioClient(private val context: Context) {
         connectedAccountId: String
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            val apiKey = getDeveloperApiKey() ?: error("Automation not configured")
+            val apiKey = getDeveloperApiKey()
 
             val body = JSONObject().apply {
                 put("actionId", actionId)

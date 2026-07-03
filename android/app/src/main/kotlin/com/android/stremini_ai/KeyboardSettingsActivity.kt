@@ -1,4 +1,4 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 import android.os.Bundle
 import android.widget.*

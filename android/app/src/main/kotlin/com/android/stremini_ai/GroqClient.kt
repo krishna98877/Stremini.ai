@@ -1,15 +1,13 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 /**
  * Direct Groq API client — replaces the old Cloudflare Worker backend.
@@ -43,12 +41,8 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
     /** Groq API key stored encrypted on device */
     private val prefs = EncryptedPrefs.getEncrypted(context, "groq_prefs")
 
-    /** Standard OkHttpClient — no trusted-host interceptor, just normal HTTPS */
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(45, TimeUnit.SECONDS)
-        .callTimeout(60, TimeUnit.SECONDS)
-        .build()
+    /** Secure HTTP client with rate limiting and trusted-host enforcement */
+    // Calls are made via secureHttpClient() per-request to respect useCase routing
 
     /** Store the Groq API key */
     fun setApiKey(key: String) {
@@ -118,7 +112,7 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
                 .post(requestBody)
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            secureHttpClient(15, 45, "chat").newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorBody = response.body?.string() ?: ""
                     when (response.code) {
@@ -195,7 +189,7 @@ Only return valid JSON, nothing else."""
                 .post(requestBody)
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            secureHttpClient(15, 30, "chat").newCall(request).execute().use { response ->
                 if (!response.isSuccessful) error("Command failed. Please try again.")
                 val body = response.body?.string() ?: "{}"
                 val json = JSONObject(body)

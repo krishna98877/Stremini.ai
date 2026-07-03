@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.Android.stremini_ai"
+    namespace = "com.android.stremini_ai"
     // UPDATED: 34 -> 36 (Required by image_picker)
     compileSdk = 36
     ndkVersion = "29.0.14206865"
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.Android.stremini_ai"
+        applicationId = "com.android.stremini_ai"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

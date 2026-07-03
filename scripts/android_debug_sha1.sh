@@ -35,7 +35,7 @@ KEYTOOL_OUTPUT="$(keytool -list -v \
 SHA1_FINGERPRINT="$(printf '%s\n' "${KEYTOOL_OUTPUT}" | awk -F': ' '/SHA1:/{print $2; exit}')"
 SHA256_FINGERPRINT="$(printf '%s\n' "${KEYTOOL_OUTPUT}" | awk -F': ' '/SHA256:/{print $2; exit}')"
 
-echo "Application ID: com.Android.stremini_ai"
+echo "Application ID: com.android.stremini_ai"
 echo "Keystore: ${KEYSTORE_PATH}"
 echo "Alias: ${ALIAS_NAME}"
 echo "SHA1: ${SHA1_FINGERPRINT}"

@@ -1,12 +1,10 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 import android.content.Context
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
 /**
  * Keyboard AI client — now uses Groq API directly.
@@ -23,12 +21,6 @@ class IMEBackendClient(context: Context) {
     }
 
     private val prefs = EncryptedPrefs.getEncrypted(context, "groq_prefs")
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .callTimeout(15, TimeUnit.SECONDS)
-        .build()
 
     private fun getApiKey(): String? = prefs.getString("groq_api_key")
 
@@ -74,7 +66,7 @@ class IMEBackendClient(context: Context) {
             .post(requestBody)
             .build()
 
-        client.newCall(request).execute().use { response ->
+        secureHttpClient(5, 10, "groq_keyboard").newCall(request).execute().use { response ->
             if (!response.isSuccessful) return@use ""
             val body = response.body?.string() ?: return@use ""
             val json = JSONObject(body)
@@ -118,7 +110,7 @@ class IMEBackendClient(context: Context) {
             .post(requestBody)
             .build()
 
-        client.newCall(request).execute().use { response ->
+        secureHttpClient(5, 10, "groq_keyboard").newCall(request).execute().use { response ->
             if (!response.isSuccessful) return@use ""
             val body = response.body?.string() ?: return@use ""
             val json = JSONObject(body)

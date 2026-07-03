@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <input-method xmlns:android="http://schemas.android.com/apk/res/android"
-    android:settingsActivity="com.Android.stremini_ai.KeyboardSettingsActivity"
+    android:settingsActivity="com.android.stremini_ai.KeyboardSettingsActivity"
     android:icon="@drawable/keyboard"
     android:isDefault="false"
     android:supportsSwitchingToNextInputMethod="true">

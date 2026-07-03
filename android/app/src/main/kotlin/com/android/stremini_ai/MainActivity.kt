@@ -1,4 +1,4 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 import android.Manifest
 import android.content.Context
@@ -45,7 +45,7 @@ class MainActivity : FlutterActivity() {
 
             // Notify the overlay service to refresh connected services
             val refreshIntent = Intent(this, ChatOverlayService::class.java).apply {
-                action = "com.Android.stremini_ai.REFRESH_COMPOSIO"
+                action = "com.android.stremini_ai.REFRESH_COMPOSIO"
                 putExtra("provider", provider ?: "")
                 putExtra("status", status ?: "")
             }
@@ -59,6 +59,7 @@ class MainActivity : FlutterActivity() {
             ))
 
             if (status == "success" || status == "connected" || code != null) {
+                refreshConnectedServicesCache()
                 Toast.makeText(this, "Service connected! You can now use it in chat.", Toast.LENGTH_LONG).show()
             }
         }
@@ -121,6 +122,11 @@ class MainActivity : FlutterActivity() {
     // Cached connected services map (refreshed periodically to avoid runBlocking ANR)
     private var _cachedConnectedServices: Map<String, List<String>> = emptyMap()
 
+    override fun onResume() {
+        super.onResume()
+        refreshConnectedServicesCache()
+    }
+
     /** Refresh the cached connected-services map (call from a coroutine) */
     fun refreshConnectedServicesCache() {
         lifecycleScope.launch {
@@ -168,11 +174,11 @@ class MainActivity : FlutterActivity() {
                 .addOnSuccessListener { visionText -> result.success(visionText.text) }
                 .addOnFailureListener { e ->
                     Log.e(TAG, "OCR failed", e)
-                    result.success("")
+                    result.error("OCR_FAILED", e.localizedMessage ?: "OCR failed", null)
                 }
         } catch (e: Exception) {
             Log.e(TAG, "Error preparing OCR", e)
-            result.success("")
+            result.error("OCR_PREP_FAILED", e.localizedMessage ?: "Failed to load image", null)
         }
     }
 

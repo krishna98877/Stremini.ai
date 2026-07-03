@@ -1,4 +1,4 @@
-package com.Android.stremini_ai
+package com.android.stremini_ai
 
 class FloatingChatController(
     private val onShow: () -> Unit,
