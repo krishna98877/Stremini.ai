@@ -150,31 +150,10 @@ class ChatOverlayService : Service(), View.OnTouchListener {
 
         // Initialize Groq brain with API key
         aiBackendClient = AIBackendClient(this)
-        if (!aiBackendClient.isConfigured()) {
-            // Fetch key from backend at first launch (keys must never be in APK)
-            serviceScope.launch(Dispatchers.IO) {
-                try {
-                    val response = secureHttpClient(10, 15, "config")
-                        .newCall(
-                            okhttp3.Request.Builder()
-                                .url("https://your-backend.workers.dev/api/config")
-                                .get()
-                                .build()
-                        ).execute()
-                    val json = org.json.JSONObject(response.body?.string() ?: "{}")
-                    val groqKey = json.optString("groq_key")
-                    if (groqKey.isNotBlank()) {
-                        aiBackendClient.setGroqApiKey(groqKey)
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.e("ChatOverlayService", "Failed to fetch config", e)
-                }
-            }
-        }
+        // Note: Groq API key must be set by the user in the Flutter Settings screen.
+        // The key is stored in encrypted prefs and shared across the overlay service and IME.
 
-        startForeground(NOTIFICATION_ID, buildNotification())
-
-        // Create notification channel once
+        // Create notification channel BEFORE startForeground (required on Android 12+)
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.createNotificationChannel(NotificationChannel(
             CHANNEL_ID,
@@ -184,6 +163,8 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             description = "Floating AI bubble is active"
             setShowBadge(false)
         })
+
+        startForeground(NOTIFICATION_ID, buildNotification())
 
         bubbleController        = BubbleController(::hideBubble, ::showBubble).apply { setVisible(isBubbleVisible) }
         floatingChatController  = FloatingChatController(::showFloatingChatbot, ::hideFloatingChatbot)
@@ -215,6 +196,12 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         when (intent?.action) {
             ACTION_TOGGLE_BUBBLE -> bubbleController.toggle()
             ACTION_STOP_SERVICE  -> { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
+            "com.android.stremini_ai.REFRESH_COMPOSIO" -> {
+                // Refresh connected services cache when deep-link callback arrives
+                if (isConnectorsVisible) {
+                    serviceScope.launch { refreshServiceConnectionStates() }
+                }
+            }
         }
         return START_STICKY
     }
@@ -643,15 +630,24 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             // Click handler
             setOnClickListener {
                 if (status.text == "Connected") {
-                    status.text = "Connect"
-                    status.setTextColor(CYAN)
-                    icon.background = GradientDrawable().apply {
-                        shape = GradientDrawable.OVAL
-                        setColor(svc.color.toInt())
-                    }
+                    // Optimistic UI update
+                    status.text = "Disconnecting..."
+                    status.setTextColor(Color.parseColor("#6B7280"))
                     serviceConnectionState[svc.id] = false
-                    serviceScope.launch { composioClient.disconnectService(svc.id) }
-                    Toast.makeText(this@ChatOverlayService, "${svc.name} disconnected", Toast.LENGTH_SHORT).show()
+                    serviceScope.launch {
+                        val success = composioClient.disconnectService(svc.id)
+                        if (!success) {
+                            // Rollback — disconnect failed, service is still connected
+                            serviceConnectionState[svc.id] = true
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                status.text = "Connected"
+                                status.setTextColor(Color.parseColor("#25D366"))
+                            }
+                            Toast.makeText(this@ChatOverlayService, "Disconnect failed. Try again.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this@ChatOverlayService, "${svc.name} disconnected", Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 } else {
                     // Open Composio managed auth in WebView
                     composioClient.connectService(svc.id)
@@ -878,7 +874,14 @@ class ChatOverlayService : Service(), View.OnTouchListener {
 
     private fun addMessageToChatbot(message: String, isUser: Boolean) {
         floatingChatView?.let { view ->
-            val messagesContainer = view.findViewById<LinearLayout>(R.id.messages_container)
+            val messagesContainer = view.findViewById<LinearLayout>(R.id.messages_container) ?: return@let
+
+            // Cap message bubbles to prevent OOM in long sessions
+            val MAX_MESSAGES = 80
+            while (messagesContainer.childCount >= MAX_MESSAGES) {
+                messagesContainer.removeViewAt(0)
+            }
+
             val messageView = LayoutInflater.from(this).inflate(
                 if (isUser) R.layout.message_bubble_user else R.layout.message_bubble_bot,
                 messagesContainer, false
@@ -893,7 +896,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
                 Toast.makeText(this@ChatOverlayService, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
                 true
             }
-            messagesContainer?.addView(messageView)
+            messagesContainer.addView(messageView)
             view.findViewById<ScrollView>(R.id.scroll_messages)?.post {
                 view.findViewById<ScrollView>(R.id.scroll_messages)?.fullScroll(View.FOCUS_DOWN)
             }

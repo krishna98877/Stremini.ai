@@ -125,6 +125,8 @@ fun secureHttpClient(
     val rateLimiter = when (useCase) {
         "keyboard"          -> keyboardRateLimiter
         "groq_keyboard"     -> groqKeyboardRateLimiter
+        "groq_chat"         -> groqChatRateLimiter
+        "chat"              -> chatRateLimiter
         "composio",
         "composio_execute"  -> chatRateLimiter
         "config"            -> configRateLimiter
@@ -144,7 +146,7 @@ fun secureHttpClient(
 private val CONTROL_CHAR_PATTERN = Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]")
 private val BIDI_CONTROL_PATTERN = Regex("[\\u202A-\\u202E\\u2066-\\u2069]")
 private val EXCESS_SPACE_PATTERN = Regex("[ \\t]{2,}")
-private val EMOJI_PATTERN = Regex("[\\uD83C-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u27BF\\uFE0F\\u200D]+")
+private val EMOJI_PATTERN = Regex("[\\uD800-\\uDBFF\\uDC00-\\uDFFF\\u2600-\\u27BF\\uFE0F\\u200D]+")
 private val PROMPT_INJECTION_PATTERN = Regex(
     "ignore\\s+(all\\s+)?(previous|prior|above)\\s+(instructions|rules)|" +
         "disregard\\s+(previous|prior|above)|" +

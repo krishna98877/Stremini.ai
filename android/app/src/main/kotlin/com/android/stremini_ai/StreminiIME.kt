@@ -1760,9 +1760,12 @@ class StreminiIME : InputMethodService() {
     override fun onDestroy() {
         stopSpeechRecognition()
         releaseSoundEffects()
+        // Cancel ALL pending handler callbacks (backspace repeat, speech retry,
+        // dotSemicolon long-press, etc.) to prevent post-destroy crashes.
+        handler.removeCallbacksAndMessages(null)
+        serviceScope.cancel()
         speechRecognizer?.destroy()
         speechRecognizer = null
         super.onDestroy()
-        serviceScope.cancel()
     }
 }

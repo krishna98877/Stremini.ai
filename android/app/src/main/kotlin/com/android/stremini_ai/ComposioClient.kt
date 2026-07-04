@@ -246,53 +246,55 @@ class ComposioClient(
                     connectTimeoutSeconds = 10, readTimeoutSeconds = 15, useCase = "composio"
                 ).newCall(request).execute()
 
-                if (response.isSuccessful) {
-                    val respBody = response.body?.string() ?: "{}"
-                    val json = JSONObject(respBody)
+                response.use { resp ->
+                    if (resp.isSuccessful) {
+                        val respBody = resp.body?.string() ?: "{}"
+                        val json = JSONObject(respBody)
 
-                    // Composio returns the auth URL — try multiple field names
-                    val authUrl = json.optString("redirectUrl")
-                        .takeIf { it.isNotBlank() }
-                        ?: json.optString("authUrl")
+                        // Composio returns the auth URL — try multiple field names
+                        val authUrl = json.optString("redirectUrl")
                             .takeIf { it.isNotBlank() }
-                        ?: json.optString("connectionUrl")
-                            .takeIf { it.isNotBlank() }
-                        ?: json.optString("url")
-                            .takeIf { it.isNotBlank() }
+                            ?: json.optString("authUrl")
+                                .takeIf { it.isNotBlank() }
+                            ?: json.optString("connectionUrl")
+                                .takeIf { it.isNotBlank() }
+                            ?: json.optString("url")
+                                .takeIf { it.isNotBlank() }
 
-                    if (authUrl != null) {
-                        // Open in ComposioAuthActivity (WebView) — NOT external browser
-                        withContext(Dispatchers.Main) {
-                            val intent = Intent(context, ComposioAuthActivity::class.java).apply {
-                                putExtra(ComposioAuthActivity.EXTRA_AUTH_URL, authUrl)
-                                putExtra(ComposioAuthActivity.EXTRA_SERVICE_NAME,
-                                    ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId)
-                                putExtra(ComposioAuthActivity.EXTRA_SERVICE_ID, serviceId)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        if (authUrl != null) {
+                            // Open in ComposioAuthActivity (WebView) — NOT external browser
+                            withContext(Dispatchers.Main) {
+                                val intent = Intent(context, ComposioAuthActivity::class.java).apply {
+                                    putExtra(ComposioAuthActivity.EXTRA_AUTH_URL, authUrl)
+                                    putExtra(ComposioAuthActivity.EXTRA_SERVICE_NAME,
+                                        ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId)
+                                    putExtra(ComposioAuthActivity.EXTRA_SERVICE_ID, serviceId)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                try {
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Cannot start ComposioAuthActivity", e)
+                                    // Fallback: open in Chrome Custom Tab
+                                    openInCustomTab(authUrl)
+                                }
                             }
-                            try {
-                                context.startActivity(intent)
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Cannot start ComposioAuthActivity", e)
-                                // Fallback: open in Chrome Custom Tab
-                                openInCustomTab(authUrl)
+                        } else {
+                            // No URL returned — redirect to Composio dashboard for manual connection
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    context,
+                                    "Opening Composio dashboard to connect ${ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId}...",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                openInCustomTab("$COMPOSIO_CONNECT_BASE/connect-apps")
                             }
                         }
                     } else {
-                        // No URL returned — redirect to Composio dashboard for manual connection
+                        Log.e(TAG, "connectService(${serviceId}) failed: ${resp.code}")
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(
-                                context,
-                                "Opening Composio dashboard to connect ${ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId}...",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            openInCustomTab("$COMPOSIO_CONNECT_BASE/connect-apps")
+                            Toast.makeText(context, "Connection failed (error ${resp.code}). Please try again.", Toast.LENGTH_SHORT).show()
                         }
-                    }
-                } else {
-                    Log.e(TAG, "connectService(${serviceId}) failed: ${response.code}")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Connection failed (error ${response.code}). Please try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             } catch (e: Exception) {
@@ -491,10 +493,19 @@ Return ONLY valid JSON, nothing else. Example: {"actionId":"GMAIL_SEND_EMAIL","p
                     val toMatch = toRegex.find(instruction)
                     val subjectRegex = Regex("(?:subject|about|re)\\s+[:\"]?([^\".]+)", RegexOption.IGNORE_CASE)
                     val subjectMatch = subjectRegex.find(instruction)
+                    // Extract body: remove the "send email to X about Y" prefix
+                    var bodyHint = instruction
+                    val sendPrefixRegex = Regex("(?i)^.*?(?:send|compose|write)\\s+(?:an?\\s+)?(?:email|mail)\\s+(?:to\\s+[\\w.+-]+@[\\w.-]+\\s*)?", RegexOption.IGNORE_CASE)
+                    val subjectPart = subjectMatch?.groupValues?.get(1)?.trim()
+                    bodyHint = sendPrefixRegex.replace(bodyHint, "").trim()
+                    if (subjectPart != null) {
+                        bodyHint = bodyHint.replace(Regex("(?i)\\b(?:about|subject|re)\\s+[:\"]?\\Q$subjectPart\\E", RegexOption.IGNORE_CASE), "").trim()
+                    }
+                    if (bodyHint.isBlank()) bodyHint = instruction
                     "GMAIL_SEND_EMAIL" to mapOf(
                         "to" to (toMatch?.groupValues?.get(1) ?: ""),
-                        "subject" to (subjectMatch?.groupValues?.get(1)?.trim() ?: "No subject"),
-                        "body" to instruction,
+                        "subject" to (subjectPart ?: "No subject"),
+                        "body" to bodyHint,
                     )
                 }
                 else -> "GMAIL_READ_EMAILS" to mapOf("maxResults" to 10)

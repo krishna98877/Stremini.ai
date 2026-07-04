@@ -318,7 +318,12 @@ class ComposioAuthActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        webView.destroy()
+        try {
+            if (::webView.isInitialized) {
+                webView.stopLoading()
+                webView.destroy()
+            }
+        } catch (_: Exception) {}
         super.onDestroy()
     }
 }

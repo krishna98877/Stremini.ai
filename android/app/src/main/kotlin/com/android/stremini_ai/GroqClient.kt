@@ -112,7 +112,7 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
                 .post(requestBody)
                 .build()
 
-            secureHttpClient(15, 45, "chat").newCall(request).execute().use { response ->
+            secureHttpClient(15, 45, "groq_chat").newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorBody = response.body?.string() ?: ""
                     when (response.code) {
@@ -189,7 +189,7 @@ Only return valid JSON, nothing else."""
                 .post(requestBody)
                 .build()
 
-            secureHttpClient(15, 30, "chat").newCall(request).execute().use { response ->
+            secureHttpClient(15, 30, "groq_chat").newCall(request).execute().use { response ->
                 if (!response.isSuccessful) error("Command failed. Please try again.")
                 val body = response.body?.string() ?: "{}"
                 val json = JSONObject(body)

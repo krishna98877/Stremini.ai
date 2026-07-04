@@ -15,7 +15,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import android.content.pm.PackageManager
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel

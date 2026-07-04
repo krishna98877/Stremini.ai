@@ -164,6 +164,13 @@ class IMEBackendClient(context: Context) {
 }
 
 /** Strip backend URLs from errors before they surface anywhere. */
+private fun sanitizeErrorMessage(msg: String): String {
+    return msg
+        .replace(Regex("https?://[^\\s,]+"), "the server")
+        .replace(Regex("[a-zA-Z0-9._-]+\\.[a-zA-Z]{2,6}(:\\d+)?(/[^\\s]*)?"), "the server")
+        .trim()
+}
+
 private fun <T> Result<T>.mapFailure(): Result<T> = recoverCatching { t ->
     throw RuntimeException(sanitizeErrorMessage(t.message ?: "Unknown error"))
 }
