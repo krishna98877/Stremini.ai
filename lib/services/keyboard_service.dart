@@ -75,5 +75,4 @@ class KeyboardStatus {
   });
 
   bool get isActive => isEnabled && isSelected;
-  bool get needsSetup => !isEnabled || !isSelected;
 }

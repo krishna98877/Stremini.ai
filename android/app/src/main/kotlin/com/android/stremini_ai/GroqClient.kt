@@ -22,7 +22,6 @@ import org.json.JSONObject
 class GroqClient(context: Context) {
 
     companion object {
-        private const val TAG = "GroqClient"
         private const val GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
         private const val MODEL = "llama-3.3-70b-versatile"
 
@@ -146,62 +145,6 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
         }.mapGroqFailure()
     }
 
-    /**
-     * Send a device control command to Groq.
-     * Uses a specialized system prompt for device control context.
-     */
-    suspend fun sendDeviceCommand(command: String, screenContext: String): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            val apiKey = getApiKey() ?: error("Groq API key not set.")
-
-            val deviceSystemPrompt = """You are Stremini AI's device control module. You receive a user command and the current screen context.
-Parse the command and return a JSON action:
-- {"action": "type", "text": "..."} — type text into the current field
-- {"action": "click", "description": "..."} — describe what to click
-- {"action": "scroll", "direction": "up/down"} — scroll
-- {"action": "back"} — go back
-- {"action": "home"} — go home
-- {"action": "none", "message": "..."} — if you can't help, explain why
-Only return valid JSON, nothing else."""
-
-            val messages = JSONArray().apply {
-                put(JSONObject().apply {
-                    put("role", "system")
-                    put("content", deviceSystemPrompt)
-                })
-                put(JSONObject().apply {
-                    put("role", "user")
-                    put("content", "Screen context: ${protectForAi(screenContext, source = "screen context")}\n\nCommand: ${protectForAi(command, source = "device command")}")
-                })
-            }
-
-            val requestBody = JSONObject().apply {
-                put("model", MODEL)
-                put("messages", messages)
-                put("max_tokens", 512)
-                put("temperature", 0.3)
-            }.toString().toRequestBody("application/json".toMediaType())
-
-            val request = Request.Builder()
-                .url(GROQ_API_URL)
-                .addHeader("Authorization", "Bearer $apiKey")
-                .addHeader("Content-Type", "application/json")
-                .post(requestBody)
-                .build()
-
-            secureHttpClient(15, 30, "groq_chat").newCall(request).execute().use { response ->
-                if (!response.isSuccessful) error("Command failed. Please try again.")
-                val body = response.body?.string() ?: "{}"
-                val json = JSONObject(body)
-                val choices = json.optJSONArray("choices")
-                if (choices != null && choices.length() > 0) {
-                    val msg = choices.getJSONObject(0).optJSONObject("message")
-                    if (msg != null) return@withContext msg.optString("content", "Command processed")
-                }
-                "Command processed"
-            }
-        }.mapGroqFailure()
-    }
 }
 
 /** Map Groq API errors to user-friendly messages */

@@ -98,7 +98,5 @@ object EncryptedPrefs {
         fun remove(key: String) {
             prefs.edit().remove(key).apply()
         }
-
-        fun contains(key: String): Boolean = prefs.contains(key)
     }
 }

@@ -19,15 +19,6 @@ class ChatWindowNotifier extends Notifier<ChatWindowState> {
   void setMode(String mode) {
     state = state.copyWith(overlayMode: mode);
   }
-
-  void cycleMode() {
-    final newMode = switch (state.overlayMode) {
-      "icon" => "radial",
-      "radial" => "maximized",
-      _ => "icon", // maximized or unknown returns to icon
-    };
-    state = state.copyWith(overlayMode: newMode);
-  }
 }
 
 final chatWindowStateProvider =

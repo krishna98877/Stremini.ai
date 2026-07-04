@@ -134,14 +134,6 @@ class ComposioClient(
      */
     fun isConfigured(): Boolean = getDeveloperApiKey().isNotBlank()
 
-    /**
-     * Set a custom Composio consumer key (overrides embedded one).
-     * Only used for developer testing.
-     */
-    fun setDeveloperApiKey(key: String) {
-        prefs.putString("composio_dev_key", key)
-    }
-
     // ── Connected Accounts ───────────────────────────────────────────
 
     /**

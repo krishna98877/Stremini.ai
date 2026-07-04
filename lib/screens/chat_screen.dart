@@ -20,10 +20,6 @@ import 'settings_screen.dart';
 // Glassmorphic design tokens
 // ─────────────────────────────────────────────────────────────────────────────
 const _bg          = Colors.black;
-const _surface     = Color(0xE6111111);
-const _surfaceHi   = Color(0xF21A1A1A);
-const _border      = Color(0x1AFFFFFF);
-const _borderHi    = Color(0x26FFFFFF);
 const _accent      = Color(0xFF23A6E2);
 const _accentGlow  = Color(0x3323A6E2);
 const _accentDim   = Color(0xFF0A1A28);

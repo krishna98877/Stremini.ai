@@ -11,7 +11,6 @@ import android.os.Looper
 import android.os.Build
 import android.view.KeyEvent
 import android.view.MotionEvent
-import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import android.graphics.Color
@@ -22,13 +21,10 @@ import android.widget.HorizontalScrollView
 import android.view.inputmethod.InputMethodManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
-import android.widget.PopupMenu
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.content.ClipDescription
 import android.net.Uri
 import android.provider.MediaStore
@@ -46,7 +42,6 @@ import android.media.ToneGenerator
 import android.media.AudioManager
 import kotlinx.coroutines.*
 import org.json.JSONArray
-import org.json.JSONObject
 import kotlin.math.min
 
 class StreminiIME : InputMethodService() {
@@ -59,7 +54,6 @@ class StreminiIME : InputMethodService() {
         // Maximum number of clipboard entries to keep. Acts as a fixed-size ring buffer:
         // newest item goes to index 0, oldest item is dropped when size exceeds this limit.
         private const val CLIPBOARD_HISTORY_LIMIT = 5
-        private const val PERMISSION_REQUEST_CODE = 1001
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -101,7 +95,6 @@ class StreminiIME : InputMethodService() {
     private var isListening = false
     private var speechErrorCount = 0
     private val MAX_SPEECH_ERRORS = 3
-    private val recognitionResults = StringBuilder()
     private var soundPool: SoundPool? = null
     private var micClickSoundId: Int = 0
     private var selectedLanguage = "en-US"
@@ -1253,42 +1246,6 @@ class StreminiIME : InputMethodService() {
         // Haptic feedback removed as per user request
     }
 
-    private fun handleClipboardPaste() {
-        val ic = currentInputConnection ?: return
-        if (!isClipboardHistoryEnabled()) {
-            Toast.makeText(this, "Clipboard history is disabled", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val clip = clipboardManager.primaryClip ?: return
-        val text = clip.getItemAt(0)?.coerceToText(this)?.toString().orEmpty()
-        if (text.isNotBlank()) {
-            saveClipboardEntry(text)
-            ic.commitText(text, 1)
-        } else {
-            Toast.makeText(this, "Clipboard is empty", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun handleClipboardCopy() {
-        val ic = currentInputConnection ?: return
-        if (!isClipboardHistoryEnabled()) {
-            Toast.makeText(this, "Clipboard history is disabled", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val selected = ic.getSelectedText(0)?.toString().orEmpty()
-        val textToCopy = if (selected.isNotBlank()) selected else getCurrentText()
-
-        if (textToCopy.isBlank()) {
-            Toast.makeText(this, "Nothing to copy", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val clip = ClipData.newPlainText("Stremini", textToCopy)
-        clipboardManager.setPrimaryClip(clip)
-        saveClipboardEntry(textToCopy)
-        Toast.makeText(this, "Copied to clipboard", Toast.LENGTH_SHORT).show()
-    }
-
     private fun showClipboardPanel(panelContainer: FrameLayout, closeFn: () -> Unit) {
         panelContainer.removeAllViews() // clear any previous panel content
         val view = layoutInflater.inflate(R.layout.clipboard_panel, null)
@@ -1471,14 +1428,6 @@ class StreminiIME : InputMethodService() {
             .scaleY(scale)
             .setDuration(duration)
             .start()
-    }
-
-    private fun showKeyboardSwitcher() {
-        val switched = switchToNextInputMethod(false)
-        if (!switched) {
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
-            imm?.showInputMethodPicker()
-        }
     }
 
     private fun updateShiftState() {

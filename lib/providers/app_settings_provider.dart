@@ -141,20 +141,6 @@ class AppSettingsNotifier extends Notifier<AppSettings> {
     if (!value) await prefs.remove(_Keys.chatHistory);
   }
 
-  /// Changing theme updates state immediately → MaterialApp rebuilds → theme changes app-wide.
-  Future<void> setTheme(String value) async {
-    state = state.copyWith(theme: value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_Keys.theme, value);
-  }
-
-  /// Changing language updates state immediately → MaterialApp rebuilds → locale changes app-wide.
-  Future<void> setLanguage(String value) async {
-    state = state.copyWith(language: value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_Keys.language, value);
-  }
-
   // ── Chat history persistence ───────────────────────────────────────────────
 
   Future<void> persistChatHistory(List<Message> messages) async {

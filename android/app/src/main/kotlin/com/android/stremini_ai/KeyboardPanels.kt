@@ -436,14 +436,6 @@ object KeyboardPanels {
         parent.addView(root)
     }
 
-    // ─── Close Panel Helper ────────────────────────────────────
-
-    fun closePanel(panelContainer: FrameLayout?, keyboardBody: View?) {
-        panelContainer?.removeAllViews()
-        panelContainer?.visibility = View.GONE
-        keyboardBody?.visibility = View.VISIBLE
-    }
-
     // ─── Tone Changer Panel (Professional Dark Themed) ─────────
 
     data class ToneOption(

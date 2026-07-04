@@ -15,7 +15,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.PorterDuff
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
@@ -78,7 +77,6 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     private var isMenuExpanded = false
     private val activeFeatures  = mutableSetOf<Int>()
     private var isBubbleVisible = true
-    private lateinit var inputMethodManager: InputMethodManager
 
     // Touch / drag state
     private var initialX      = 0
@@ -146,7 +144,6 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     override fun onCreate() {
         super.onCreate()
         windowManager     = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        inputMethodManager= getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
 
         // Initialize Groq brain with API key
         aiBackendClient = AIBackendClient(this)
@@ -935,7 +932,6 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     }
 
     // ── Feature handlers
-    private fun handleKeyboard() { openKeyboardSwitcher() }
     private fun openKeyboardSwitcher() {
         try {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -944,8 +940,6 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             Toast.makeText(this, "Could not open keyboard picker", Toast.LENGTH_SHORT).show()
         }
     }
-    private fun handleSettings() { openMainApp(); Toast.makeText(this, "Opening Stremini…", Toast.LENGTH_SHORT).show() }
-
     private fun openMainApp() {
         try {
             val intent = packageManager.getLaunchIntentForPackage(packageName)
