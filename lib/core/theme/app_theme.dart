@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 class AppTheme {
-  // ─────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────[...]
   // DARK THEME
-  // ─────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────[...]
   static ThemeData get darkTheme {
     const bg     = Color(0xFF000000);
     const surface= Color(0xE6111111);
@@ -39,7 +39,7 @@ class AppTheme {
 
       // Cards
       cardColor: surface,
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         shadowColor: Colors.transparent,
@@ -106,7 +106,7 @@ class AppTheme {
       ),
 
       // Dialog
-      dialogTheme: const DialogTheme(
+      dialogTheme: const DialogThemeData(
         backgroundColor: Color(0xE6111111),
         surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(color: white, fontSize: 17, fontWeight: FontWeight.w700),
@@ -207,9 +207,9 @@ class AppTheme {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────[...]
   // LIGHT THEME
-  // ─────────────────────────────────────────────────────────────────────────
+  // ────────────────────────────────────────────────────────────────[...]
   static ThemeData get lightTheme {
     const bg      = Color(0xFFF7F8FA);
     const surface = Colors.white;
@@ -242,7 +242,7 @@ class AppTheme {
       ),
 
       cardColor: surface,
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
         margin: EdgeInsets.zero,
@@ -299,7 +299,7 @@ class AppTheme {
         ),
       ),
 
-      dialogTheme: const DialogTheme(
+      dialogTheme: const DialogThemeData(
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(color: textDark, fontSize: 17, fontWeight: FontWeight.w700),
