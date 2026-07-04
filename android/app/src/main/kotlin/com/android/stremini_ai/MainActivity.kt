@@ -104,7 +104,7 @@ class MainActivity : FlutterActivity() {
                 executeComposioAutomation = { instruction ->
                     composioClient.executeAutomation(
                         instruction = instruction,
-                        groqClient = null // Will use keyword-based fallback from MainActivity
+                        groqClient = groqClientForAutomation
                     ).getOrThrow()
                 },
                 automationScope = lifecycleScope,
@@ -119,6 +119,8 @@ class MainActivity : FlutterActivity() {
 
     // Lazy ComposioClient for service management from MainActivity
     private val composioClient by lazy { ComposioClient(this) }
+    // Lazy GroqClient for automation intent parsing from Flutter channel
+    private val groqClientForAutomation by lazy { GroqClient(this) }
     // Cached connected services map (refreshed periodically to avoid runBlocking ANR)
     private var _cachedConnectedServices: Map<String, List<String>> = emptyMap()
 

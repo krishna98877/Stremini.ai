@@ -349,9 +349,13 @@ class StreminiIME : InputMethodService() {
             
             // Continuous Pulse Animation
             fun startPulse() {
+                val frame = micFrame // capture reference to avoid NPE if view is detached
+                if (frame == null) return
                 if (!isListening && color != Color.RED) return
-                micFrame.animate().scaleX(1.15f).scaleY(1.15f).alpha(0.7f).setDuration(600).withEndAction {
-                    micFrame.animate().scaleX(1.0f).scaleY(1.0f).alpha(1.0f).setDuration(600).withEndAction {
+                frame.animate().scaleX(1.15f).scaleY(1.15f).alpha(0.7f).setDuration(600).withEndAction {
+                    val innerFrame = micFrame
+                    if (innerFrame == null) return@withEndAction
+                    innerFrame.animate().scaleX(1.0f).scaleY(1.0f).alpha(1.0f).setDuration(600).withEndAction {
                         if (isListening || color == Color.RED) startPulse()
                     }.start()
                 }.start()
@@ -1706,6 +1710,10 @@ class StreminiIME : InputMethodService() {
         val originalText = getCurrentText()
         if (originalText.isBlank()) {
             Toast.makeText(this, "Type something to translate", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (originalText.length > 8000) {
+            Toast.makeText(this, "Text is too long to translate. Select a smaller portion.", Toast.LENGTH_LONG).show()
             return
         }
 

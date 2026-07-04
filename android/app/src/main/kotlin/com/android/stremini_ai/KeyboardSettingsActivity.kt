@@ -1,6 +1,7 @@
 package com.android.stremini_ai
 
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 
@@ -15,6 +16,10 @@ class KeyboardSettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
         setContentView(R.layout.activity_keyboard_settings)
         coordinator = KeyboardSettingsCoordinator(this)
 

@@ -9,17 +9,7 @@
 -keep class io.flutter.plugins.**  { *; }
 
 # ── Stremini components (referenced via XML / reflection) ────────
--keep class com.android.stremini_ai.MainActivity { *; }
--keep class com.android.stremini_ai.ChatOverlayService { *; }
--keep class com.android.stremini_ai.StreminiIME { *; }
--keep class com.android.stremini_ai.KeyboardSettingsActivity { *; }
--keep class com.android.stremini_ai.NotificationActionReceiver { *; }
--keep class com.android.stremini_ai.EncryptedPrefs { *; }
--keep class com.android.stremini_ai.EncryptedPrefs$EncryptedSharedPreferencesWrapper { *; }
--keep class com.android.stremini_ai.SecurityGuardsKt { *; }
--keep class com.android.stremini_ai.ComposioClient { *; }
--keep class com.android.stremini_ai.ComposioClient$* { *; }
--keep class com.android.stremini_ai.ComposioAuthActivity { *; }
+-keep class com.android.stremini_ai.** { *; }
 
 # ── OkHttp ───────────────────────────────────────────────────────
 -dontwarn okhttp3.**

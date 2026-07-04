@@ -501,7 +501,8 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT,
@@ -711,15 +712,32 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         if (!isConnectorsVisible) return
         isConnectorsVisible = false
         isConnectorsActive = false
-        updateConnectorsToggleIcon()
         try { windowManager.removeView(connectorsView) } catch (_: Exception) {}
         connectorsView = null
+        // Update toggle icon in the chat input bar (exists independently of connectors panel)
+        updateChatConnectorsToggleIcon()
     }
 
     private fun updateConnectorsToggleIcon() {
         val btn = connectorsView?.findViewById<FrameLayout>(R.id.btn_connectors_toggle) ?: return
         val icon = btn?.findViewById<ImageView>(R.id.connectors_toggle_icon)
         val dot  = btn?.findViewById<View>(R.id.connectors_active_dot)
+        val anyConnected = serviceConnectionState.values.any { it }
+        if (anyConnected) {
+            icon?.setColorFilter(CYAN)
+            dot?.visibility = View.VISIBLE
+        } else {
+            icon?.setColorFilter(BORDER)
+            dot?.visibility = View.GONE
+        }
+    }
+
+    /** Update toggle icon in the floating chat input bar (independent of connectors panel) */
+    private fun updateChatConnectorsToggleIcon() {
+        val chatView = floatingChatView ?: return
+        val btn = chatView.findViewById<FrameLayout>(R.id.btn_connectors_toggle) ?: return
+        val icon = btn.findViewById<ImageView>(R.id.connectors_toggle_icon)
+        val dot  = btn.findViewById<View>(R.id.connectors_active_dot)
         val anyConnected = serviceConnectionState.values.any { it }
         if (anyConnected) {
             icon?.setColorFilter(CYAN)
@@ -765,7 +783,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         header?.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    chatInitialTouchX = event.rawX; chatInitialY = event.rawY
+                    chatInitialTouchX = event.rawX; chatInitialTouchY = event.rawY
                     chatInitialX = floatingChatParams?.x ?: 0
                     chatInitialY = floatingChatParams?.y ?: 0
                     chatIsDragging = true

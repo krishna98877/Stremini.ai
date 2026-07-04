@@ -242,9 +242,10 @@ class ComposioClient(
                     .post(body)
                     .build()
 
-                val response = secureHttpClient(
+                val client = secureHttpClient(
                     connectTimeoutSeconds = 10, readTimeoutSeconds = 15, useCase = "composio"
-                ).newCall(request).execute()
+                )
+                val response = client.newCall(request).execute()
 
                 response.use { resp ->
                     if (resp.isSuccessful) {
@@ -297,6 +298,7 @@ class ComposioClient(
                         }
                     }
                 }
+                // response is already closed by .use {} above — no leak
             } catch (e: Exception) {
                 Log.e(TAG, "connectService(${serviceId}) error", e)
                 withContext(Dispatchers.Main) {
@@ -401,6 +403,7 @@ class ComposioClient(
                         )
                     )
                 }
+            }
         }
     }
 
@@ -457,17 +460,19 @@ class ComposioClient(
 - "actionId": The most appropriate Composio action ID for ${service.name}. Common ones: ${INTENT_ACTION_MAP.values.filter { it.startsWith(service.id.uppercase()) }.joinToString(", ")}
 - "params": A flat key-value map of parameters needed for this action.
 
-User request: $instruction
+User request: ${protectForAi(instruction, source = "automation request")}
 
 Return ONLY valid JSON, nothing else. Example: {"actionId":"GMAIL_SEND_EMAIL","params":{"to":"john@example.com","subject":"Hello","body":"Hi there"}}"""
 
         val response = groqClient.sendMessage(message = prompt, history = emptyList())
+            .getOrDefault("")
 
         return runCatching {
             val jsonStr = response
                 .replace(Regex("```json\\s*"), "")
                 .replace(Regex("```\\s*"), "")
                 .trim()
+            if (jsonStr.isBlank() || !jsonStr.startsWith("{")) return@runCatching null
             val json = JSONObject(jsonStr)
             val actionId = json.getString("actionId")
             val paramsJson = json.getJSONObject("params")

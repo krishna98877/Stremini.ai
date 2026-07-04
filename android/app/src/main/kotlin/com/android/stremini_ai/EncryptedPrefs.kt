@@ -66,8 +66,10 @@ object EncryptedPrefs {
 
     private fun decrypt(ciphertext: String): String {
         val combined = Base64.decode(ciphertext, Base64.NO_WRAP)
+        if (combined.size < 12) throw IllegalArgumentException("Encrypted data too short")
         val iv = combined.copyOfRange(0, 12)
         val encrypted = combined.copyOfRange(12, combined.size)
+        if (encrypted.isEmpty()) throw IllegalArgumentException("No encrypted payload")
 
         val secretKey = getOrCreateSecretKey()
         val cipher = Cipher.getInstance(TRANSFORMATION)
