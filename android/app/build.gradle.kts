@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -30,7 +32,7 @@ android {
 
         // Inject Composio consumer key from local.properties or env var
         val localProps = rootProject.file("local.properties")
-        val props = java.util.Properties()
+        val props = Properties()
         if (localProps.exists()) props.load(localProps.inputStream())
         val composioKey = props.getProperty("composio.consumer.key")
             ?: System.getenv("COMPOSIO_CONSUMER_KEY")
