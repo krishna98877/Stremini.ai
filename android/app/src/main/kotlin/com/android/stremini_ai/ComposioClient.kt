@@ -546,7 +546,6 @@ class ComposioClient(
                         }
                         403 -> error("Permission denied. Reconnect the service and try again.")
                         429 -> error("Rate limited (429). Please wait a moment and try again.")
-                        handleSessionError(response.code)
                         in 500..599 -> error("Composio server error (${response.code}). Please try again shortly.")
                         else -> {
                             try {
