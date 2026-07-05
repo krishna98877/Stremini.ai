@@ -385,7 +385,7 @@ class ComposioClient(
         params: Map<String, Any>,
         connectedAccountId: String,
         serviceId: String?
-    ) {
+    ): String {
         val apiKey = getDeveloperApiKey()
 
         val body = JSONObject().apply {

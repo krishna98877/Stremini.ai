@@ -130,7 +130,7 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
                 if (choices != null && choices.length() > 0) {
                     val messageObj = choices.getJSONObject(0).optJSONObject("message")
                     if (messageObj != null) {
-                        return@withContext messageObj.optString("content", "I couldn't generate a response. Please try again.")
+                        return@runCatching messageObj.optString("content", "I couldn't generate a response. Please try again.")
                     }
                 }
 

@@ -960,11 +960,13 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         menuItems.forEach { item ->
             if (activeFeatures.contains(item.id)) {
                 val outer = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL, setColor(cyan),
+                    shape = GradientDrawable.OVAL
+                    setColor(cyan)
                 }
                 val inner = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL, setColor(DARK),
-                    setSize(dpToPx(46f), dpToPx(46f)),
+                    shape = GradientDrawable.OVAL
+                    setColor(DARK)
+                    setSize(dpToPx(46f), dpToPx(46f))
                 }
                 item.background = LayerDrawable(arrayOf(outer, inner))
             } else {
