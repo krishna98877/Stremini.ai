@@ -736,22 +736,22 @@ class ComposioClient(
                 }
             }
 
+            // ── Single-service fast path ─────────────────────────────
+            val service = detectService(instruction)
+                ?: error("Couldn't detect which service to use. Try mentioning the service name.")
+
             // ── AI Learning: check cache first ──────────────────────────
             val cached = getCachedAutomation(instruction)
             if (cached != null) {
                 val (cachedActionId, cachedParams) = cached
                 Log.i(TAG, "Automation cache HIT: $instruction → $cachedActionId")
-                val accountId = connected[service?.id ?: ""]?.firstOrNull()
-                    ?: error("Service not connected. Connect it first.")
+                val accountId = connected[service.id]?.firstOrNull()
+                    ?: error("${service.name} is not connected. Connect it first.")
                 return@runCatching executeAction(
                     cachedActionId, cachedParams, accountId,
-                    serviceId = service?.id
+                    serviceId = service.id
                 ).getOrThrow()
             }
-
-            // ── Single-service fast path ─────────────────────────────
-            val service = detectService(instruction)
-                ?: error("Couldn't detect which service to use. Try mentioning the service name.")
 
             val accountIds = connected[service.id]
             if (accountIds.isNullOrEmpty()) {
