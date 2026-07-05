@@ -238,7 +238,13 @@ class ComposioAuthActivity : AppCompatActivity() {
      * - Any URL starting with stremini://composio
      *
      * Also detect the Composio success page (as a fallback):
-     * - connect.composio.dev/*success*
+     * - `connect.composio.dev/` followed by a path containing "success"
+     *
+     * NOTE: the literal glob pattern is intentionally not written here
+     * because Kotlin's KDoc parser treats `/*` as the start of a nested
+     * block comment, which is forbidden and produces misleading
+     * "Missing '}'" / "Unclosed comment" errors that cascade across
+     * the rest of the file (and into other files in the same module).
      */
     private fun handleUrlRedirect(url: String): Boolean {
         val uri = Uri.parse(url)
