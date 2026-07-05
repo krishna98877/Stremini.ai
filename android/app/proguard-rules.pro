@@ -65,7 +65,7 @@
 }
 
 # ── Preserve all Android framework callbacks ─────────────────────
--keepclasseswithmembernames class * {
+-keepclasseswithmembers class * {
     public <init>(android.content.Context);
     public void on*(android.view.View);
 }
@@ -92,3 +92,14 @@
 # behavior (stripping Auxiliary Class Attributes) is achieved via
 # -keepattributes SourceFile,LineNumberTable above (which keeps only the
 # minimum debug info needed for crash stack traces).
+
+# ── Flutter Play Core (deferred components) ──────────────────────
+# Flutter's PlayStoreDeferredComponentManager references com.google.android.play.core.*
+# classes that aren't on the classpath when the app doesn't ship Play Core
+# deferred components. Without these -dontwarn rules R8 fails with
+# "Missing class" errors during :app:minifyReleaseWithR8.
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
+-dontwarn com.google.android.play.core.listener.**
+-keep class com.google.android.play.core.** { *; }
