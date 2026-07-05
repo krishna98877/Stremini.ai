@@ -502,15 +502,40 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            // FLAG_NOT_FOCUSABLE must be cleared so the search EditText can accept input.
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
             PixelFormat.TRANSLUCENT,
         )
-        lp.gravity = Gravity.CENTER
+        // Half-screen bottom sheet style: full width, anchored to bottom
+        lp.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        lp.width = WindowManager.LayoutParams.MATCH_PARENT
+        lp.height = WindowManager.LayoutParams.WRAP_CONTENT
 
         connectorsView = LayoutInflater.from(this).inflate(R.layout.connectors_panel_layout, null)
+
+        // Wire up search filter
+        val searchInput = connectorsView?.findViewById<EditText>(R.id.composio_search_input)
+        val searchCount = connectorsView?.findViewById<TextView>(R.id.composio_search_count)
+        searchInput?.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val query = s?.toString()?.trim()?.lowercase() ?: ""
+                filterServicesList(query)
+                if (query.isNotEmpty()) {
+                    val filtered = ComposioClient.ALL_SERVICES.count { svc ->
+                        query.isEmpty() || svc.name.lowercase().contains(query) ||
+                            svc.keywords.any { it.contains(query) }
+                    }
+                    searchCount?.text = "$filtered found"
+                    searchCount?.visibility = View.VISIBLE
+                } else {
+                    searchCount?.visibility = View.GONE
+                }
+            }
+        })
 
         // Wire close button
         connectorsView?.findViewById<ImageView>(R.id.btn_close_connectors)?.setOnClickListener {
@@ -540,16 +565,32 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         updateConnectorsToggleIcon()
     }
 
-    /** Build 13 service items in a 2-column grid */
+    /** Build all 15 service items in a 3-column grid. */
     private fun buildServicesList() {
+        filterServicesList("")
+    }
+
+    /**
+     * Build the services grid, filtered by [query] (case-insensitive).
+     * Matches against the service name and its keyword list.
+     */
+    private fun filterServicesList(query: String) {
         val grid = connectorsView?.findViewById<LinearLayout>(R.id.services_grid) ?: return
         grid.removeAllViews()
 
+        val q = query.lowercase()
+        val filtered = ComposioClient.ALL_SERVICES.filter { svc ->
+            q.isEmpty() ||
+                svc.name.lowercase().contains(q) ||
+                svc.keywords.any { it.contains(q) }
+        }
+
+        val columnsPerRow = 3
         var currentRow: LinearLayout? = null
         var itemsInRow = 0
 
-        for ((index, svc) in ComposioClient.ALL_SERVICES.withIndex()) {
-            // Start a new row every 2 items
+        for ((index, svc) in filtered.withIndex()) {
+            // Start a new row every [columnsPerRow] items
             if (itemsInRow == 0) {
                 currentRow = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
@@ -565,41 +606,51 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             currentRow?.addView(cell)
 
             itemsInRow++
-            if (itemsInRow == 2 || index == ComposioClient.ALL_SERVICES.lastIndex) {
-                // Row is full (2 items) or this is the last item
+            if (itemsInRow == columnsPerRow || index == filtered.lastIndex) {
                 grid.addView(currentRow)
                 itemsInRow = 0
             }
         }
+
+        // If no results, show a friendly empty state
+        if (filtered.isEmpty()) {
+            val empty = TextView(this).apply {
+                text = "No services match \"$query\""
+                setTextColor(Color.parseColor("#6B7280"))
+                textSize = 13f
+                gravity = Gravity.CENTER
+                setPadding(16, 32, 16, 32)
+            }
+            grid.addView(empty)
+        }
     }
 
-    /** Build a single service cell (card) for the grid */
+    /** Build a single service cell (glassmorphic card) for the grid */
     private fun buildServiceCell(svc: ServiceDef): LinearLayout {
+        val density = resources.displayMetrics.density
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(8, 12, 8, 12)
+            setPadding((10 * density).toInt(), (14 * density).toInt(), (10 * density).toInt(), (12 * density).toInt())
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
-                marginEnd = 4
-                bottomMargin = 4
+                marginEnd = (6 * density).toInt()
+                marginStart = (6 * density).toInt()
+                bottomMargin = (8 * density).toInt()
             }
             // Tag for async status updates
             tag = svc.id
+            // Glassmorphic card background
+            background = android.content.res.ResourcesCompat.getDrawable(
+                resources, R.drawable.service_card_bg, null
+            )
 
-            // Colored icon circle
-            val icon = TextView(this@ChatOverlayService).apply {
-                text = svc.iconChar
-                setTextColor(Color.WHITE)
-                textSize = 18f
-                typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.CENTER
-                val size = (36 * resources.displayMetrics.density).toInt()
+            // Service logo (vector drawable)
+            val icon = ImageView(this@ChatOverlayService).apply {
+                setImageResource(svc.iconRes)
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                val size = (42 * density).toInt()
                 layoutParams = LinearLayout.LayoutParams(size, size).apply {
-                    bottomMargin = (6 * resources.displayMetrics.density).toInt()
-                }
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(svc.color.toInt())
+                    bottomMargin = (8 * density).toInt()
                 }
             }
             addView(icon)

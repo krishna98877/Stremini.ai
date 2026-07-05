@@ -6,6 +6,7 @@ import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import com.android.stremini_ai.BuildConfig
+import com.android.stremini_ai.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -48,6 +49,8 @@ import java.net.URLEncoder
  * inconsistently resolves nested companion types from other files in the
  * same package — `ComposioClient.ALL_SERVICES` resolves fine but
  * `ComposioClient.ServiceDef` does not. Promoting to top-level fixes this.
+ *
+ * @param iconRes drawable resource ID for the service logo (e.g. R.drawable.logo_github)
  */
 data class ServiceDef(
     val id: String,
@@ -55,6 +58,7 @@ data class ServiceDef(
     val keywords: List<String>,
     val color: Long,
     val iconChar: String,
+    val iconRes: Int,
 )
 
 class ComposioClient(
@@ -78,21 +82,21 @@ class ComposioClient(
         const val REDIRECT_URI = "stremini://composio"
 
         val ALL_SERVICES = listOf(
-            ServiceDef("github",       "GitHub",       listOf("github","repo","repository","commit","pull request","issue","branch"),           0xFF6e40c9, "G"),
-            ServiceDef("gmail",        "Gmail",        listOf("gmail","email","mail","send email","inbox","draft"),                               0xFFEA4335, "M"),
-            ServiceDef("telegram",     "Telegram",     listOf("telegram","tg","telegram message","telegram chat","telegram channel"),               0xFF0088cc, "T"),
-            ServiceDef("twitter",      "Twitter",      listOf("twitter","tweet","x.com","post tweet","timeline","retweet"),                         0xFF1DA1F2, "X"),
-            ServiceDef("instagram",    "Instagram",    listOf("instagram","ig","instagram story","instagram reel","instagram dm","instagram post"), 0xFFE4405F, "I"),
-            ServiceDef("facebook",     "Facebook",     listOf("facebook","fb","facebook post","facebook page","facebook group"),                      0xFF1877F2, "F"),
-            ServiceDef("whatsapp",     "WhatsApp",     listOf("whatsapp","wa","whats app","whatsapp message"),                                       0xFF25D366, "W"),
-            ServiceDef("googlechrome", "Chrome",       listOf("chrome","browser","open url","browse","search","tab"),                                 0xFF4285F4, "C"),
-            ServiceDef("googledrive",  "Google Drive", listOf("drive","google drive","upload","drive file","drive folder","share file"),               0xFF0F9D58, "D"),
-            ServiceDef("discord",      "Discord",      listOf("discord","discord server","discord channel","discord dm","guild"),                      0xFF5865F2, "D"),
-            ServiceDef("linkedin",     "LinkedIn",     listOf("linkedin","linkedin profile","linkedin connection","linkedin job","linkedin post"),      0xFF0A66C2, "L"),
-            ServiceDef("reddit",       "Reddit",       listOf("reddit","subreddit","reddit post","upvote","comment","thread"),                        0xFFFF4500, "R"),
-            ServiceDef("googlesheets",  "Google Sheets",listOf("sheet","spreadsheet","google sheets","cell","row","column","table"),                  0xFF0F9D58, "S"),
-            ServiceDef("youtube",      "YouTube",      listOf("youtube","youtube video","youtube channel","upload video","youtube comment","subscribe","playlist","youtube shorts"), 0xFFFF0000, "Y"),
-            ServiceDef("tiktok",       "TikTok",       listOf("tiktok","tiktok video","tiktok post","tiktok dm","tiktok comment","tiktok account","duet"),              0xFF000000, "Tk"),
+            ServiceDef("github",       "GitHub",       listOf("github","repo","repository","commit","pull request","issue","branch"),           0xFF6e40c9, "G", R.drawable.logo_github),
+            ServiceDef("gmail",        "Gmail",        listOf("gmail","email","mail","send email","inbox","draft"),                               0xFFEA4335, "M", R.drawable.logo_gmail),
+            ServiceDef("telegram",     "Telegram",     listOf("telegram","tg","telegram message","telegram chat","telegram channel"),               0xFF0088cc, "T", R.drawable.logo_telegram),
+            ServiceDef("twitter",      "Twitter",      listOf("twitter","tweet","x.com","post tweet","timeline","retweet"),                         0xFF1DA1F2, "X", R.drawable.logo_twitter),
+            ServiceDef("instagram",    "Instagram",    listOf("instagram","ig","instagram story","instagram reel","instagram dm","instagram post"), 0xFFE4405F, "I", R.drawable.logo_instagram),
+            ServiceDef("facebook",     "Facebook",     listOf("facebook","fb","facebook post","facebook page","facebook group"),                      0xFF1877F2, "F", R.drawable.logo_facebook),
+            ServiceDef("whatsapp",     "WhatsApp",     listOf("whatsapp","wa","whats app","whatsapp message"),                                       0xFF25D366, "W", R.drawable.logo_whatsapp),
+            ServiceDef("googlechrome", "Chrome",       listOf("chrome","browser","open url","browse","search","tab"),                                 0xFF4285F4, "C", R.drawable.logo_chrome),
+            ServiceDef("googledrive",  "Google Drive", listOf("drive","google drive","upload","drive file","drive folder","share file"),               0xFF0F9D58, "D", R.drawable.logo_googledrive),
+            ServiceDef("discord",      "Discord",      listOf("discord","discord server","discord channel","discord dm","guild"),                      0xFF5865F2, "D", R.drawable.logo_discord),
+            ServiceDef("linkedin",     "LinkedIn",     listOf("linkedin","linkedin profile","linkedin connection","linkedin job","linkedin post"),      0xFF0A66C2, "L", R.drawable.logo_linkedin),
+            ServiceDef("reddit",       "Reddit",       listOf("reddit","subreddit","reddit post","upvote","comment","thread"),                        0xFFFF4500, "R", R.drawable.logo_reddit),
+            ServiceDef("googlesheets",  "Google Sheets",listOf("sheet","spreadsheet","google sheets","cell","row","column","table"),                  0xFF0F9D58, "S", R.drawable.logo_googlesheets),
+            ServiceDef("youtube",      "YouTube",      listOf("youtube","youtube video","youtube channel","upload video","youtube comment","subscribe","playlist","youtube shorts"), 0xFFFF0000, "Y", R.drawable.logo_youtube),
+            ServiceDef("tiktok",       "TikTok",       listOf("tiktok","tiktok video","tiktok post","tiktok dm","tiktok comment","tiktok account","duet"),              0xFF000000, "Tk", R.drawable.logo_tiktok),
         )
 
         /** Map of common user intents → Composio action IDs */
@@ -129,13 +133,16 @@ class ComposioClient(
 
     /**
      * Get the Composio Consumer API key.
-     * Uses BuildConfig value (injected from local.properties / env).
-     * Falls back to EncryptedPrefs if a custom key was set at runtime.
+     * Resolution order:
+     * 1. EncryptedPrefs (if a custom key was set at runtime via setDeveloperApiKey)
+     * 2. BuildConfig.COMPOSIO_CONSUMER_KEY (injected at build time from
+     *    local.properties / env var / hardcoded default in build.gradle.kts)
+     * 3. Empty string (not configured)
      */
     fun getDeveloperApiKey(): String {
         val stored = prefs.getString("composio_dev_key")
         if (!stored.isNullOrBlank()) return stored
-        // Use BuildConfig-injected key
+        // Use BuildConfig-injected key (has a hardcoded default in build.gradle.kts)
         val buildConfigKey = BuildConfig.COMPOSIO_CONSUMER_KEY
         if (buildConfigKey.isNotBlank()) {
             prefs.putString("composio_dev_key", buildConfigKey)

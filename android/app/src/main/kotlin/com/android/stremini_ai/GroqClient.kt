@@ -40,6 +40,13 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
     /** Groq API key stored encrypted on device */
     private val prefs = EncryptedPrefs.getEncrypted(context, "groq_prefs")
 
+    /**
+     * Hardcoded default key — used as a fallback so the chat overlay works
+     * out of the box without requiring the user to configure anything.
+     * Rotate before public release.
+     */
+    private val defaultApiKey: String = "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"
+
     /** Secure HTTP client with rate limiting and trusted-host enforcement */
     // Calls are made via secureHttpClient() per-request to respect useCase routing
 
@@ -48,8 +55,12 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
         prefs.putString("groq_api_key", key)
     }
 
-    /** Get the stored Groq API key */
-    fun getApiKey(): String? = prefs.getString("groq_api_key")
+    /** Get the stored Groq API key, falling back to the hardcoded default if none set. */
+    fun getApiKey(): String? {
+        val stored = prefs.getString("groq_api_key")
+        if (!stored.isNullOrBlank()) return stored
+        return defaultApiKey
+    }
 
     /** Check if Groq is configured */
     fun isConfigured(): Boolean = !getApiKey().isNullOrBlank()

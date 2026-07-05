@@ -14,7 +14,7 @@
         android:layout_width="68dp"
         android:layout_height="68dp"
         android:background="@drawable/glow_gradient_ring"
-        android:src="@drawable/new_logo"
+        android:src="@drawable/ic_stremini_logo"
         android:contentDescription="Stremini AI"
         android:layout_gravity="center"
         android:elevation="12dp"

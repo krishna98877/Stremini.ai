@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stremini AI logo — circular vector. The 'A' mark on dark background. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- Dark circular background -->
+    <path
+        android:pathData="M24,24m-22,0a22,22 0,1 1,44 0a22,22 0,1 1,-44 0"
+        android:fillColor="#0A0A0A" />
+
+    <!-- Cyan ring -->
+    <path
+        android:pathData="M24,24m-21,0a21,21 0,1 1,42 0a21,21 0,1 1,-42 0"
+        android:strokeColor="#23A6E2"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000" />
+
+    <!-- Stylized 'A' mark (lightning bolt inside an A-frame) -->
+    <path
+        android:pathData="M24,9 L36,38 L30.5,38 L28,31 L20,31 L17.5,38 L12,38 Z M21.5,26 L26.5,26 L24,18 Z"
+        android:fillColor="#23A6E2" />
+
+    <!-- Inner lightning bolt accent -->
+    <path
+        android:pathData="M25,16 L23,23 L25.5,23 L23.5,30"
+        android:strokeColor="#00F6FF"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+</vector>

@@ -1,26 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Half-screen bottom sheet for connectors. Glassmorphic dark theme. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/connectors_panel"
-    android:layout_width="320dp"
-    android:layout_height="520dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:maxHeight="480dp"
     android:orientation="vertical"
-    android:background="@drawable/glass_panel_bg"
-    android:elevation="8dp"
-    android:clipToOutline="true">
+    android:background="@drawable/glass_bottom_sheet_bg"
+    android:elevation="16dp"
+    android:clipToOutline="true"
+    android:paddingTop="8dp">
 
-    <!-- Header -->
+    <!-- Drag handle indicator -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/drag_handle_pill"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Header (compact) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="16dp"
-        android:paddingBottom="10dp"
-        android:background="#10000000">
+        android:paddingStart="20dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp">
 
         <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
             android:src="@drawable/ic_connectors"
             android:tint="#00F6FF"
             android:layout_marginEnd="10dp" />
@@ -31,9 +42,9 @@
             android:layout_weight="1"
             android:text="Automations"
             android:textColor="#ffffff"
-            android:textSize="15sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:letterSpacing="0.3" />
+            android:letterSpacing="0.05" />
 
         <TextView
             android:id="@+id/tv_composio_status"
@@ -49,13 +60,59 @@
             android:layout_width="28dp"
             android:layout_height="28dp"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
-            android:tint="#6B7280"
+            android:tint="#9CA3AF"
             android:padding="4dp"
             android:contentDescription="Close"
             android:scaleType="fitCenter" />
     </LinearLayout>
 
-    <!-- Info banner: tells user what this is -->
+    <!-- Search bar -->
+    <LinearLayout
+        android:id="@+id/composio_search_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/glass_search_bg"
+        android:padding="10dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="10dp">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@android:drawable/ic_menu_search"
+            android:tint="#6B7280"
+            android:layout_marginEnd="8dp" />
+
+        <EditText
+            android:id="@+id/composio_search_input"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Search services…"
+            android:textColorHint="#6B7280"
+            android:textColor="#ffffff"
+            android:textSize="13sp"
+            android:background="@android:color/transparent"
+            android:inputType="text"
+            android:imeOptions="actionSearch"
+            android:singleLine="true"
+            android:paddingStart="0dp"
+            android:paddingEnd="8dp" />
+
+        <TextView
+            android:id="@+id/composio_search_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#6B7280"
+            android:textSize="11sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <!-- Info banner (tap to open main app for initial setup if needed) -->
     <LinearLayout
         android:id="@+id/composio_connect_banner"
         android:layout_width="match_parent"
@@ -64,13 +121,14 @@
         android:background="@drawable/glass_input_bg"
         android:padding="10dp"
         android:gravity="center_vertical"
-        android:layout_marginStart="12dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginBottom="6dp">
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="6dp"
+        android:visibility="gone">
 
         <ImageView
-            android:layout_width="16dp"
-            android:layout_height="16dp"
+            android:layout_width="14dp"
+            android:layout_height="14dp"
             android:src="@drawable/ic_composio"
             android:tint="#00F6FF"
             android:layout_marginEnd="8dp" />
@@ -79,24 +137,24 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Tap Connect to link your account. No API key needed — you log in with your own credentials."
-            android:textColor="#aaaaaa"
+            android:text="Tap Connect to link your account. No API key needed."
+            android:textColor="#9CA3AF"
             android:textSize="11sp"
             android:lineSpacingMultiplier="1.2" />
     </LinearLayout>
 
-    <!-- Scrollable services grid (2 columns) -->
+    <!-- Scrollable services grid (3 columns for compact layout) -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fadeScrollbars="false"
+        android:fadeScrollbars="true"
         android:scrollbars="vertical"
-        android:paddingStart="10dp"
-        android:paddingEnd="10dp"
-        android:paddingBottom="10dp">
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="16dp"
+        android:clipToPadding="false">
 
-        <!-- 2-column grid using a horizontal LinearLayout per row -->
         <LinearLayout
             android:id="@+id/services_grid"
             android:layout_width="match_parent"
