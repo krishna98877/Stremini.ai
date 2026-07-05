@@ -48,12 +48,6 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
-// Explicit import of the companion-object nested class. Kotlin should resolve
-// ComposioClient.ServiceDef via the same-package class qualifier, but some
-// Kotlin compiler versions (observed with 2.0.21 + AGP 8.9.1) fail to resolve
-// nested companion types while successfully resolving companion vals.
-// Importing the nested type explicitly works around this.
-import com.android.stremini_ai.ComposioClient.ServiceDef
 
 class ChatOverlayService : Service(), View.OnTouchListener {
 
@@ -580,7 +574,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     }
 
     /** Build a single service cell (card) for the grid */
-    private fun buildServiceCell(svc: ComposioClient.ServiceDef): LinearLayout {
+    private fun buildServiceCell(svc: ServiceDef): LinearLayout {
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER

@@ -39,6 +39,24 @@ import java.net.URLEncoder
  *
  * Get your developer key: https://composio.dev/settings → API Keys
  */
+
+/**
+ * Service definition — id matches Composio's provider slug.
+ *
+ * Declared as a top-level data class (NOT nested inside ComposioClient's
+ * companion object) because the Kotlin 2.0.21 compiler (with AGP 8.9.1)
+ * inconsistently resolves nested companion types from other files in the
+ * same package — `ComposioClient.ALL_SERVICES` resolves fine but
+ * `ComposioClient.ServiceDef` does not. Promoting to top-level fixes this.
+ */
+data class ServiceDef(
+    val id: String,
+    val name: String,
+    val keywords: List<String>,
+    val color: Long,
+    val iconChar: String,
+)
+
 class ComposioClient(
     private val context: Context,
     externalScope: CoroutineScope? = null
@@ -58,15 +76,6 @@ class ComposioClient(
 
         /** Deep-link scheme for OAuth callback */
         const val REDIRECT_URI = "stremini://composio"
-
-        // ── Service definitions — id matches Composio's provider slug ──
-        data class ServiceDef(
-            val id: String,
-            val name: String,
-            val keywords: List<String>,
-            val color: Long,
-            val iconChar: String,
-        )
 
         val ALL_SERVICES = listOf(
             ServiceDef("github",       "GitHub",       listOf("github","repo","repository","commit","pull request","issue","branch"),           0xFF6e40c9, "G"),
