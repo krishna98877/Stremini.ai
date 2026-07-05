@@ -361,6 +361,18 @@ class ChatOverlayService : Service(), View.OnTouchListener {
 
     private fun toggleMenu() { if (isMenuAnimating) return; if (isMenuExpanded) collapseMenu() else expandMenu() }
 
+    /**
+     * Detect which side of the screen the bubble is on so the menu opens
+     * AWAY from the nearest edge (prevents menu items from being cut off).
+     * Returns true if the menu should open to the LEFT (bubble is on right
+     * half of screen), false if it should open to the RIGHT (bubble is on
+     * left half).
+     */
+    private fun shouldMenuOpenLeft(): Boolean {
+        val screenWidth = resources.displayMetrics.widthPixels
+        return bubbleScreenX > (screenWidth / 2)
+    }
+
     private fun expandMenu() {
         if (isMenuAnimating || isMenuExpanded) return
         isMenuExpanded = true; isMenuAnimating = true
@@ -371,54 +383,85 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         val expandedWindowSizePx  = (radiusPx * 2) + bubbleSizePx + dpToPx(20f)
         val collapsedWindowSizePx = bubbleSizePx + dpToPx(10f)
 
-        animateWindowSize(collapsedWindowSizePx, expandedWindowSizePx, 220L) { isMenuAnimating = false }
+        // Set the final window size IMMEDIATELY (no animation) to eliminate
+        // the glitch/jitter from per-frame windowManager.updateViewLayout calls.
+        // The bubble icon stays centered via layout_gravity="center", so it
+        // doesn't visually move — only the touch area grows.
+        preventPositionUpdates = true
+        val expandedHalf = expandedWindowSizePx / 2f
+        params.width  = expandedWindowSizePx.toInt()
+        params.height = expandedWindowSizePx.toInt()
+        params.x = (bubbleScreenX - expandedHalf).toInt()
+        params.y = (bubbleScreenY - expandedHalf).toInt()
+        try { windowManager.updateViewLayout(overlayView, params) } catch (_: Exception) {}
+        preventPositionUpdates = false
 
         val centerX    = expandedWindowSizePx / 2f; val centerY = expandedWindowSizePx / 2f
         val n = menuItems.size
 
-        overlayView.postDelayed({
-            for ((index, view) in menuItems.withIndex()) {
-                view.visibility = View.VISIBLE; view.alpha = 0f
-                view.translationX = 0f; view.translationY = 0f
-                // Semicircle above the bubble: -90° (left) to +90° (right)
-                val startDeg = -90.0
-                val endDeg = 90.0
-                val stepDeg = if (n > 1) (endDeg - startDeg) / (n - 1) else 0.0
-                val angleDeg = startDeg + index * stepDeg
-                val angle = Math.toRadians(angleDeg)
-                val targetX = centerX + (radiusPx * cos(angle)).toFloat() - (menuItemSizePx / 2)
-                val targetY = centerY + (radiusPx * -sin(angle)).toFloat() - (menuItemSizePx / 2)
-                val initialCenteredX = centerX - (menuItemSizePx / 2)
-                val initialCenteredY = centerY - (menuItemSizePx / 2)
-                view.animate()
-                    .translationX(targetX - initialCenteredX).translationY(targetY - initialCenteredY)
-                    .alpha(1f).setDuration(220).setInterpolator(DecelerateInterpolator()).start()
-            }
-            updateMenuItemsColor()
-        }, 160)
+        // Determine semicircle direction based on bubble position.
+        // Default (bubble on LEFT half): angles -90° to +90° → menu opens to the RIGHT.
+        // Flipped (bubble on RIGHT half): angles 90° to 270° → menu opens to the LEFT.
+        val openLeft = shouldMenuOpenLeft()
+        val startDeg = if (openLeft) 90.0 else -90.0
+        val endDeg   = if (openLeft) 270.0 else 90.0
+
+        // Animate menu items outward from the bubble center.
+        for ((index, view) in menuItems.withIndex()) {
+            view.visibility = View.VISIBLE; view.alpha = 0f
+            view.translationX = 0f; view.translationY = 0f
+            view.scaleX = 0.5f; view.scaleY = 0.5f
+            val stepDeg = if (n > 1) (endDeg - startDeg) / (n - 1) else 0.0
+            val angleDeg = startDeg + index * stepDeg
+            val angle = Math.toRadians(angleDeg)
+            val targetX = centerX + (radiusPx * cos(angle)).toFloat() - (menuItemSizePx / 2)
+            val targetY = centerY + (radiusPx * -sin(angle)).toFloat() - (menuItemSizePx / 2)
+            val initialCenteredX = centerX - (menuItemSizePx / 2)
+            val initialCenteredY = centerY - (menuItemSizePx / 2)
+            view.animate()
+                .translationX(targetX - initialCenteredX).translationY(targetY - initialCenteredY)
+                .alpha(1f).scaleX(1f).scaleY(1f)
+                .setDuration(200).setInterpolator(DecelerateInterpolator()).start()
+        }
+        updateMenuItemsColor()
+
+        // Mark animation complete after the item animation finishes
+        overlayView.postDelayed({ isMenuAnimating = false }, 220)
     }
 
     private fun collapseMenu() {
         if (isMenuAnimating || !isMenuExpanded) return
         isMenuExpanded = false; isMenuAnimating = true
-        val radiusPx              = dpToPx(radiusDp).toFloat()
         val bubbleSizePx          = dpToPx(bubbleSizeDp).toFloat()
-        val expandedWindowSizePx  = (radiusPx * 2) + bubbleSizePx + dpToPx(20f)
         val collapsedWindowSizePx = bubbleSizePx + dpToPx(10f)
 
+        // Animate menu items back to center + fade out
         for (view in menuItems) {
             view.animate().translationX(0f).translationY(0f).alpha(0f)
+                .scaleX(0.5f).scaleY(0.5f)
                 .setDuration(150).setInterpolator(AccelerateInterpolator())
                 .withEndAction { view.visibility = View.INVISIBLE }.start()
         }
+
+        // Shrink the window back to bubble-only size after items start fading
         overlayView.postDelayed({
-            animateWindowSize(expandedWindowSizePx, collapsedWindowSizePx, 200L) {
-                isMenuAnimating = false; resetIdleTimer()
-            }
+            preventPositionUpdates = true
+            val collapsedHalf = collapsedWindowSizePx / 2f
+            params.width  = collapsedWindowSizePx.toInt()
+            params.height = collapsedWindowSizePx.toInt()
+            params.x = (bubbleScreenX - collapsedHalf).toInt()
+            params.y = (bubbleScreenY - collapsedHalf).toInt()
+            try { windowManager.updateViewLayout(overlayView, params) } catch (_: Exception) {}
+            preventPositionUpdates = false
+            isMenuAnimating = false
+            resetIdleTimer()
         }, 120)
     }
 
     private fun animateWindowSize(fromSize: Float, toSize: Float, duration: Long = 200L, onEnd: (() -> Unit)? = null) {
+        // Retained for compatibility but no longer used by expand/collapse.
+        // The new expand/collapse set the final size immediately to avoid
+        // the per-frame windowManager.updateViewLayout jitter.
         windowAnimator?.cancel()
         isWindowResizing = true; preventPositionUpdates = true
         val fromHalf = fromSize / 2f; val toHalf = toSize / 2f
