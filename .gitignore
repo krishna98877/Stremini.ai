@@ -35,6 +35,12 @@ pub/
 android/local.properties
 *.jks
 *.keystore
+key.properties
+
+# Firebase config files (safety net — Firebase was removed but if re-added these
+# contain API keys and must never be committed).
+google-services.json
+GoogleService-Info.plist
 
 # Android build artifacts
 android/build/

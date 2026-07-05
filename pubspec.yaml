@@ -5,7 +5,8 @@ publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  # flutter_riverpod ^3.0.3 requires Dart >=3.7; lockfile pins >=3.10.3.
+  sdk: ">=3.10.3 <4.0.0"
 
 dependencies:
   flutter:
@@ -13,9 +14,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   flutter_riverpod: ^3.0.3
-  cupertino_icons: ^1.0.2
   http: ^1.5.0
-  # NEW DEPENDENCIES
   image_picker: ^1.1.2
   file_picker: ^8.0.0
   mime: ^1.0.5
@@ -34,6 +33,3 @@ flutter:
 
   assets:
     - lib/img/logo.jpg
-    - lib/img/home_icon.png
-    - lib/img/question_mark_icon.png
-    - lib/img/settings_icon.png

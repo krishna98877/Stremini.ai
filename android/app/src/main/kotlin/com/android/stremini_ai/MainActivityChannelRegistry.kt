@@ -40,7 +40,11 @@ class MainActivityChannelRegistry(
         registerOverlayChannel(flutterEngine)
         registerKeyboardChannel(flutterEngine)
         registerComposioChannel(flutterEngine)
-        registerEventChannel(flutterEngine)
+        // NOTE: The dead `stremini.chat.overlay/events` EventChannel was removed —
+        // it shared the same `setEventSink` callback as the active
+        // `stremini.composio/events` channel in MainActivity, causing the second
+        // listener to clobber the first's sink. Dart only listens to
+        // `stremini.composio/events`.
     }
 
     private fun registerOverlayChannel(flutterEngine: FlutterEngine) {
@@ -138,11 +142,4 @@ class MainActivityChannelRegistry(
             }
     }
 
-    private fun registerEventChannel(flutterEngine: FlutterEngine) {
-        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "stremini.chat.overlay/events")
-            .setStreamHandler(object : EventChannel.StreamHandler {
-                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) = actions.setEventSink(events)
-                override fun onCancel(arguments: Any?) = actions.setEventSink(null)
-            })
-    }
 }

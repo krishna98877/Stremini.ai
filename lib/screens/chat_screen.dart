@@ -153,10 +153,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       String? extractedText;
 
       if (mimeType.startsWith('image/')) {
+        if (!mounted) return;
         setState(() => _processingDoc = true);
         extractedText = await _extractTextFromImage(file);
       }
 
+      if (!mounted) return;
       setState(() {
         _selectedFile = file;
         _base64File = base64Encode(bytes);

@@ -6,4 +6,6 @@
 # flutter.sdk=/path/to/flutter/sdk
 
 # Composio consumer key (embedded at build time)
-composio.consumer.key=ck__3OYxEWJkq1dabx3b3gi
+# Replace with your real key from https://app.composio.dev/
+# DO NOT commit your real local.properties file — it is gitignored.
+composio.consumer.key=ck__YOUR_COMPOSIO_KEY_HERE

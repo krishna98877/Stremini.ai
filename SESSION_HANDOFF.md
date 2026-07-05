@@ -17,8 +17,8 @@
 
 | Credential | Value | Where Used |
 |---|---|---|
-| **Groq API Key** (full) | `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` | `lib/providers/chat_provider.dart` lines 25-29 (split into 5 parts, concatenated at runtime) |
-| **Composio Consumer Key** | `ck__3OYxEWJkq1dabx3b3gi` | Build-time injection via `android/local.properties` → `BuildConfig.COMPOSIO_CONSUMER_KEY` → `ComposioClient.kt` |
+| **Groq API Key** (full) | `gsk_<REDACTED:ROTATED>` | `lib/providers/chat_provider.dart` lines 25-29 (split into 5 parts, concatenated at runtime) |
+| **Composio Consumer Key** | `ck__<REDACTED:ROTATED>` | Build-time injection via `android/local.properties` → `BuildConfig.COMPOSIO_CONSUMER_KEY` → `ComposioClient.kt` |
 | **GitHub PAT** (for push) | Embedded in git remote URL | `origin` remote (redacted in logs, configured in this env) |
 
 ### Groq Models Used
@@ -246,7 +246,7 @@ cd Kemini
 
 # (Optional) Set Composio key — without it, Composio features won't work
 cat > android/local.properties << 'EOF'
-composio.consumer.key=ck__3OYxEWJkq1dabx3b3gi
+composio.consumer.key=ck__<REDACTED:ROTATED>
 EOF
 
 flutter pub get

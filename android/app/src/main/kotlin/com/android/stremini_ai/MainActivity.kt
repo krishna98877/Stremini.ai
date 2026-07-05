@@ -153,8 +153,14 @@ class MainActivity : FlutterActivity() {
 
         // Listen for 401-triggered local disconnects from ComposioClient
         // and forward them to Flutter so the Dart-side cache stays in sync.
+        // 3-arg overload with RECEIVER_NOT_EXPORTED is required on targetSdk >= 34
+        // (Android 14+); 2-arg overload throws SecurityException AND fails lintVitalRelease.
         val disconnectFilter = IntentFilter("com.android.stremini_ai.SERVICE_DISCONNECTED")
-        registerReceiver(_disconnectReceiver, disconnectFilter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(_disconnectReceiver, disconnectFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(_disconnectReceiver, disconnectFilter)
+        }
     }
 
     private val _disconnectReceiver = object : BroadcastReceiver() {

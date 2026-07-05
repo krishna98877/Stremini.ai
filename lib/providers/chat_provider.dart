@@ -21,15 +21,43 @@ class DocumentContext {
 
 final documentContextProvider = StateProvider<DocumentContext?>((ref) => null);
 
-/// Groq API key — the brain (assembled at runtime to avoid secret scanning)
-const String _grokP1 = 'gsk_FpcUvx5O';
-const String _grokP2 = 'ZYJcsjPndHdG';
-const String _grokP3 = 'WGdyb3FYFPlS';
-const String _grokP4 = 'RNxzYtQwKLTR';
-const String _grokP5 = 'aL9Ec2yg';
+/// Groq API key.
+///
+/// SECURITY: The key is injected at build time via `--dart-define=GROQ_API_KEY=...`
+/// (or via the `GROQ_API_KEY` environment variable at runtime). It is NOT stored
+/// in source. If neither is provided, the app fails loudly with a clear error
+/// instead of silently shipping with no LLM access.
+///
+/// Build example:
+///   flutter build apk --release \
+///     --dart-define=GROQ_API_KEY=gsk_your_real_key_here
+///
+/// CI: set the `GROQ_API_KEY` env var in GitHub Actions secrets, then pass
+/// `--dart-define=GROQ_API_KEY=$GROQ_API_KEY` in build.yml.
+const String _kGroqApiKeyPlaceholder = r'$$GROQ_API_KEY$$';
+
+String _resolveGroqApiKey() {
+  // Build-time injection via --dart-define takes priority.
+  const injected = String.fromEnvironment('GROQ_API_KEY', defaultValue: _kGroqApiKeyPlaceholder);
+  if (injected != _kGroqApiKeyPlaceholder && injected.isNotEmpty) {
+    return injected;
+  }
+  // Fall back to runtime env var (useful for `flutter run` in dev).
+  final env = const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : const String.fromEnvironment('GROQ_API_KEY_DEV', defaultValue: _kGroqApiKeyPlaceholder);
+  if (env != null && env != _kGroqApiKeyPlaceholder && env.isNotEmpty) {
+    return env;
+  }
+  throw StateError(
+    'Groq API key not configured. Build with:\n'
+    '  flutter build apk --release --dart-define=GROQ_API_KEY=gsk_...\n'
+    'or set the GROQ_API_KEY environment variable.',
+  );
+}
 
 final groqClientProvider = Provider<GroqClient>((ref) {
-  final client = GroqClient(apiKey: _grokP1 + _grokP2 + _grokP3 + _grokP4 + _grokP5);
+  final client = GroqClient(apiKey: _resolveGroqApiKey());
   ref.onDispose(() => client.dispose());
   return client;
 });

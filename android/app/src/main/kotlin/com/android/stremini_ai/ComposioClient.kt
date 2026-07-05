@@ -8,6 +8,7 @@ import android.widget.Toast
 import com.android.stremini_ai.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -40,10 +41,15 @@ import java.net.URLEncoder
  */
 class ComposioClient(
     private val context: Context,
-    private val externalScope: CoroutineScope? = null
+    externalScope: CoroutineScope? = null
 ) {
 
-    private val workScope get() = externalScope ?: CoroutineScope(Dispatchers.IO)
+    // Use a single stable scope for the lifetime of this client.
+    // Previously this property created a brand-new CoroutineScope on every
+    // access when externalScope was null — leading to unstructured, un-cancellable
+    // work that leaked across Activity recreations.
+    private val workScope: CoroutineScope =
+        externalScope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     companion object {
         private const val TAG = "ComposioClient"
@@ -318,15 +324,23 @@ class ComposioClient(
             val accountIds = connected[serviceId] ?: return@withContext false
             val client = secureHttpClient(connectTimeoutSeconds = 10, readTimeoutSeconds = 15, useCase = "composio")
 
+            var allSucceeded = true
             for (accountId in accountIds) {
                 val request = Request.Builder()
                     .url("$COMPOSIO_API_BASE/connectedAccounts/$accountId")
                     .addHeader("x-api-key", apiKey)
                     .delete()
                     .build()
-                client.newCall(request).execute().use { it.close() }
+                client.newCall(request).execute().use { response ->
+                    // Drain the body so the connection can be reused.
+                    response.body?.close()
+                    if (!response.isSuccessful) {
+                        Log.w(TAG, "DELETE connectedAccounts/$accountId failed: HTTP ${response.code}")
+                        allSucceeded = false
+                    }
+                }
             }
-            true
+            allSucceeded
         }.getOrDefault(false)
     }
 
@@ -451,17 +465,19 @@ class ComposioClient(
             }
             prefs.putString("connected_services_${serviceId}", filtered.toString())
         }
-        // Notify Flutter side so it can update _serviceStatus immediately
-        externalScope?.launch {
-            withContext(Dispatchers.Main) {
-                try {
-                    val intent = Intent("com.android.stremini_ai.SERVICE_DISCONNECTED").apply {
-                        putExtra("serviceId", serviceId)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                    context.sendBroadcast(intent)
-                } catch (_: Exception) {}
-            }
+        // Notify Flutter side so it can update _serviceStatus immediately.
+        // sendBroadcast is non-blocking and safe to call from any thread, so we
+        // dispatch on workScope without requiring an external scope to be set.
+        // (Previously this was wrapped in `externalScope?.launch { ... }`, which
+        // silently dropped the broadcast when externalScope was null — i.e. for
+        // the MainActivity-created client.)
+        workScope.launch {
+            try {
+                val intent = Intent("com.android.stremini_ai.SERVICE_DISCONNECTED").apply {
+                    putExtra("serviceId", serviceId)
+                }
+                context.sendBroadcast(intent)
+            } catch (_: Exception) {}
         }
     }
 

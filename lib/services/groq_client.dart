@@ -21,7 +21,7 @@ When a user's request clearly involves one of these services, acknowledge it and
 
 Keep responses concise and conversational. You're inside a floating chat bubble, so be quick and useful.''';
 
-  String _apiKey;
+  final String _apiKey;
   final String model;
   final http.Client _httpClient;
 
@@ -31,10 +31,6 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
     http.Client? httpClient,
   })  : _apiKey = apiKey,
         _httpClient = httpClient ?? http.Client();
-
-  set apiKey(String key) => _apiKey = key;
-
-  bool get isConfigured => _apiKey.isNotEmpty;
 
   /// Send a chat message to Groq and get the full response.
   Future<String> sendMessage({

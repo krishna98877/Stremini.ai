@@ -861,34 +861,39 @@ class StreminiIME : InputMethodService() {
     private var inlinePasteUri: Uri? = null
     private var inlinePasteMimeType: String? = null
 
-    private fun setupClipboardListener() {
-        clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboardManager.addPrimaryClipChangedListener {
-            val clip = clipboardManager.primaryClip
-            if (clip != null && clip.itemCount > 0) {
-                val item = clip.getItemAt(0)
-                val description = clip.description
+    // Stored as a field so it can be unregistered in onDestroy.
+    // Without this, ClipboardManager holds a strong reference to the IME
+    // and the listener count multiplies on each onCreateInputView call.
+    private val clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+        val clip = clipboardManager.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val item = clip.getItemAt(0)
+            val description = clip.description
 
-                // Check for image/screenshots
-                if (description.hasMimeType(ClipDescription.MIMETYPE_TEXT_URILIST) || 
-                    description.hasMimeType("image/*")) {
-                    val uri = item.uri
-                    if (uri != null) {
-                        showInlinePasteSuggestion(null, uri, description.getMimeType(0))
-                        // Also store in history as a URI string
-                        saveClipboardEntry(uri.toString())
-                        return@addPrimaryClipChangedListener
-                    }
-                }
-
-                // Check for text
-                val text = item.coerceToText(this).toString().trim()
-                if (text.isNotBlank() && text != inlinePasteVisibleValue) {
-                    saveClipboardEntry(text)
-                    showInlinePasteSuggestion(text, null, ClipDescription.MIMETYPE_TEXT_PLAIN)
+            // Check for image/screenshots
+            if (description.hasMimeType(ClipDescription.MIMETYPE_TEXT_URILIST) ||
+                description.hasMimeType("image/*")) {
+                val uri = item.uri
+                if (uri != null) {
+                    showInlinePasteSuggestion(null, uri, description.getMimeType(0))
+                    // Also store in history as a URI string
+                    saveClipboardEntry(uri.toString())
+                    return@OnPrimaryClipChangedListener
                 }
             }
+
+            // Check for text
+            val text = item.coerceToText(this).toString().trim()
+            if (text.isNotBlank() && text != inlinePasteVisibleValue) {
+                saveClipboardEntry(text)
+                showInlinePasteSuggestion(text, null, ClipDescription.MIMETYPE_TEXT_PLAIN)
+            }
         }
+    }
+
+    private fun setupClipboardListener() {
+        clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboardManager.addPrimaryClipChangedListener(clipboardListener)
     }
 
     private fun showInlinePasteSuggestion(text: String?, uri: Uri?, mimeType: String?) {
@@ -1717,6 +1722,12 @@ class StreminiIME : InputMethodService() {
     override fun onDestroy() {
         stopSpeechRecognition()
         releaseSoundEffects()
+        // Unregister clipboard listener to prevent leak and multi-fire on IME recreation.
+        try {
+            clipboardManager.removePrimaryClipChangedListener(clipboardListener)
+        } catch (_: Throwable) {
+            // ClipboardManager may not have been initialized if onCreateInputView was never called.
+        }
         // Cancel ALL pending handler callbacks (backspace repeat, speech retry,
         // dotSemicolon long-press, etc.) to prevent post-destroy crashes.
         handler.removeCallbacksAndMessages(null)
