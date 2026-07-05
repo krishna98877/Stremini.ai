@@ -32,11 +32,12 @@ import java.net.URLEncoder
  * - The connected account is now available for automation.
  *
  * Endpoints (all use x-api-key header with the developer key):
- * - POST /api/v1/sessions                 → create session for user
- * - GET  /api/v1/sessions/{id}/toolkits   → list toolkits (shows connected status)
- * - POST /api/v1/sessions/{id}/authorize  → generate Connect Link (returns redirect_url)
- * - POST /api/v1/sessions/{id}/execute    → execute a tool on behalf of the user
- * - DELETE /api/v1/connectedAccounts/{id} → disconnect a specific account (legacy)
+ * - POST /api/v3.1/sessions                 → create session for user
+ * - GET  /api/v3.1/sessions/{id}/toolkits   → list toolkits (shows connected status)
+ * - POST /api/v3.1/sessions/{id}/authorize  → generate Connect Link (returns redirect_url)
+ * - POST /api/v3.1/sessions/{id}/execute    → execute a tool on behalf of the user
+ * - DELETE /api/v3.1/connectedAccounts/{id} → disconnect a specific account (legacy)
+ * - DELETE /api/v3.1/sessions/{id}/toolkits/{slug} → session-based disconnect
  *
  * Get your developer key: https://composio.dev/settings → API Keys
  */
@@ -75,7 +76,7 @@ class ComposioClient(
 
     companion object {
         private const val TAG = "ComposioClient"
-        const val COMPOSIO_API_BASE = "https://backend.composio.dev/api/v1"
+        const val COMPOSIO_API_BASE = "https://backend.composio.dev/api/v3.1"
         const val COMPOSIO_CONNECT_BASE = "https://connect.composio.dev"
 
         /** Deep-link scheme for OAuth callback */
@@ -168,10 +169,26 @@ class ComposioClient(
     /**
      * Get or create a Composio session for this device.
      * Uses a stable user ID derived from ANDROID_ID. Session ID cached in EncryptedPrefs.
+     * Validates the cached session by listing toolkits — if it fails, creates a new one.
      */
     private suspend fun getOrCreateSession(): String = withContext(Dispatchers.IO) {
         val cached = prefs.getString("composio_session_id")
-        if (!cached.isNullOrBlank()) return@withContext cached
+        if (!cached.isNullOrBlank()) {
+            // Validate the cached session is still alive
+            val valid = runCatching {
+                val apiKey = getDeveloperApiKey()
+                val client = secureHttpClient(connectTimeoutSeconds = 5L, readTimeoutSeconds = 10L, useCase = "composio")
+                val req = Request.Builder()
+                    .url("$COMPOSIO_API_BASE/sessions/$cached/toolkits")
+                    .addHeader("x-api-key", apiKey)
+                    .get().build()
+                client.newCall(req).execute().use { it.isSuccessful }
+            }.getOrDefault(false)
+            if (valid) return@withContext cached
+            // Session expired — clear cache and create a new one
+            Log.w(TAG, "Cached session $cached is invalid, creating a new one")
+            prefs.remove("composio_session_id")
+        }
 
         val apiKey = getDeveloperApiKey()
         val userId = getStableUserId()
@@ -187,13 +204,23 @@ class ComposioClient(
 
         val client = secureHttpClient(connectTimeoutSeconds = 10L, readTimeoutSeconds = 15L, useCase = "composio")
         client.newCall(request).execute().use { response ->
-            val json = JSONObject(response.body?.string() ?: "{}")
+            val respBody = response.body?.string() ?: "{}"
+            val json = JSONObject(respBody)
             val sid = json.optString("id").ifBlank {
                 json.optJSONObject("data")?.optString("id") ?: ""
             }
-            if (sid.isNotBlank()) prefs.putString("composio_session_id", sid)
+            if (sid.isNotBlank()) {
+                prefs.putString("composio_session_id", sid)
+            } else {
+                Log.e(TAG, "Session creation failed: HTTP ${response.code} body=$respBody")
+            }
             sid
         }
+    }
+
+    /** Clear the cached session ID (forces a new session on next call). */
+    fun clearSession() {
+        prefs.remove("composio_session_id")
     }
 
     private fun getStableUserId(): String {
@@ -271,7 +298,10 @@ class ComposioClient(
                             || tk.optString("status") == "connected"
                             || !tk.optString("connected_account_id").isNullOrBlank()
                         if (slug.isNotBlank() && isConnected) {
-                            result[slug] = mutableListOf(tk.optString("connected_account_id", "connected"))
+                            // Store the real connected_account_id. If blank, use the slug
+                            // so disconnectService can identify which toolkit to disconnect.
+                            val acctId = tk.optString("connected_account_id", "")
+                            result[slug] = mutableListOf(if (acctId.isNotBlank()) acctId else slug)
                         }
                     }
                 }
@@ -309,20 +339,6 @@ class ComposioClient(
         }.getOrNull()
     }
 
-    /**
-     * Initiate Composio managed OAuth for a service.
-     *
-     * Flow:
-     * 1. POST to /connectedAccounts with providerName + redirectUri → get auth URL
-     * 2. Launch ComposioAuthActivity (WebView) with the auth URL
-     * 3. User logs in with their own credentials on Composio's hosted OAuth page
-     * 4. Composio redirects to stremini://composio?provider=xxx&status=success
-     * 5. MainActivity.onNewIntent() handles the deep-link
-     * 6. Connection is complete — the account appears in getConnectedServices()
-     *
-     * NO API KEY IS NEEDED FROM THE END USER.
-     * The developer API key is used to authorize the connection request.
-     */
     /**
      * Initiate Composio managed OAuth using the official Sessions + Connect Links flow.
      *
@@ -414,24 +430,38 @@ class ComposioClient(
             val apiKey = getDeveloperApiKey()
             val connected = getConnectedServices()
             val accountIds = connected[serviceId] ?: return@withContext false
-            val client = secureHttpClient(connectTimeoutSeconds = 10, readTimeoutSeconds = 15, useCase = "composio")
+            val client = secureHttpClient(connectTimeoutSeconds = 10L, readTimeoutSeconds = 15L, useCase = "composio")
 
             var allSucceeded = true
             for (accountId in accountIds) {
-                val request = Request.Builder()
-                    .url("$COMPOSIO_API_BASE/connectedAccounts/$accountId")
-                    .addHeader("x-api-key", apiKey)
-                    .delete()
-                    .build()
+                // If accountId looks like a real ID (not a slug), use DELETE /connectedAccounts/{id}
+                // Otherwise try the session-based disconnect: DELETE /sessions/{id}/toolkits/{slug}
+                val isRealAccountId = accountId.length > 20 || accountId.contains("-")
+                val request = if (isRealAccountId) {
+                    Request.Builder()
+                        .url("$COMPOSIO_API_BASE/connectedAccounts/$accountId")
+                        .addHeader("x-api-key", apiKey)
+                        .delete()
+                        .build()
+                } else {
+                    // accountId is actually the slug — use session-based disconnect
+                    val sid = getOrCreateSession()
+                    Request.Builder()
+                        .url("$COMPOSIO_API_BASE/sessions/$sid/toolkits/$accountId")
+                        .addHeader("x-api-key", apiKey)
+                        .delete()
+                        .build()
+                }
                 client.newCall(request).execute().use { response ->
-                    // Drain the body so the connection can be reused.
                     response.body?.close()
                     if (!response.isSuccessful) {
-                        Log.w(TAG, "DELETE connectedAccounts/$accountId failed: HTTP ${response.code}")
+                        Log.w(TAG, "Disconnect $serviceId ($accountId) failed: HTTP ${response.code}")
                         allSucceeded = false
                     }
                 }
             }
+            // Always clear locally regardless of server response
+            disconnectServiceLocally(serviceId, accountIds.firstOrNull() ?: serviceId)
             allSucceeded
         }.getOrDefault(false)
     }
@@ -495,7 +525,7 @@ class ComposioClient(
             .post(body)
             .build()
 
-        return secureHttpClient(connectTimeoutSeconds = 15, readTimeoutSeconds = 60, useCase = "composio_execute")
+        return secureHttpClient(connectTimeoutSeconds = 15L, readTimeoutSeconds = 60L, useCase = "composio_execute")
             .newCall(request)
             .execute()
             .use { response ->
