@@ -401,7 +401,7 @@ class ComposioClient(
             .post(body)
             .build()
 
-        secureHttpClient(connectTimeoutSeconds = 15, readTimeoutSeconds = 60, useCase = "composio_execute")
+        return secureHttpClient(connectTimeoutSeconds = 15, readTimeoutSeconds = 60, useCase = "composio_execute")
             .newCall(request)
             .execute()
             .use { response ->
