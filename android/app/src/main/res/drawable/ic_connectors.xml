@@ -11,10 +11,9 @@
         android:strokeColor="#333333"
         android:strokeWidth="1" />
 
-    <!-- Zigzag wire / plug connector -->
+    <!-- Zigzag wire / plug connector (stroke-only — no fill) -->
     <path
         android:pathData="M8,7 L8,10 L12,10 L10,13 L14,13 L12,17"
-        android:fillColor="none"
         android:strokeColor="#00f6ff"
         android:strokeWidth="1.5"
         android:strokeLineCap="round"
