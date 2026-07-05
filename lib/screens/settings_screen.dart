@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../core/localization/app_strings.dart';
 import '../core/theme/app_colors.dart';
 import '../providers/app_settings_provider.dart';
@@ -263,23 +264,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final bool success = await const MethodChannel('stremini.composio')
           .invokeMethod('openComposioConnect');
       if (!success) {
-        // Fallback to direct browser launch if method channel fails
-        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        await url_launcher.launchUrl(Uri.parse(url), mode: url_launcher.LaunchMode.externalApplication);
       }
     } catch (e) {
-      // Fallback
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      await url_launcher.launchUrl(Uri.parse(url), mode: url_launcher.LaunchMode.externalApplication);
     }
   }
-
-  // Helper for fallback
-  Future<void> launchUrl(Uri url, {required LaunchMode mode}) async {
-    try {
-      await const MethodChannel('stremini.keyboard').invokeMethod('openUrl', {'url': url.toString()});
-    } catch (_) {}
-  }
-  
-  enum LaunchMode { externalApplication }
 
   Widget _buildSectionHeader(String title, BuildContext context) {
     return Text(
