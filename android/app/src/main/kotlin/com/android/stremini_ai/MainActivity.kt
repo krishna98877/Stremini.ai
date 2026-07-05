@@ -58,9 +58,32 @@ class MainActivity : FlutterActivity() {
                 "status" to (status ?: "success")
             ))
 
-            if (status == "success" || status == "connected" || code != null) {
+            if (code != null) {
+                exchangeCodeForToken(code)
+            } else if (status == "success" || status == "connected") {
                 refreshConnectedServicesCache()
                 Toast.makeText(this, "Service connected! You can now use it in chat.", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun exchangeCodeForToken(code: String) {
+        lifecycleScope.launch {
+            try {
+                // In a real app, this would be a call to your backend server
+                // For this implementation, we'll call the composioClient directly
+                // which will handle the exchange via the backend API.
+                val token = composioClient.exchangeCodeForToken(code)
+                if (token != null) {
+                    saveComposioToken(token)
+                    refreshConnectedServicesCache()
+                    Toast.makeText(this@MainActivity, "Automations connected!", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(this@MainActivity, "Failed to connect automations", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Token exchange failed", e)
+                Toast.makeText(this@MainActivity, "Connection error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -86,6 +109,7 @@ class MainActivity : FlutterActivity() {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     startActivity(intent)
                 },
+                openUrl = ::openUrl,
                 openComposioConnect = ::openComposioConnect,
                 getComposioToken = ::getComposioToken,
                 saveComposioToken = ::saveComposioToken,
@@ -218,14 +242,37 @@ class MainActivity : FlutterActivity() {
     /** Always true — consumer key is embedded */
     private fun isComposioConnected(): Boolean = composioClient.isConfigured()
 
-    /** No-op — key is embedded, users don't set it */
-    private fun getComposioToken(): String? = null
+    /** Get the saved user token from encrypted prefs */
+    private fun getComposioToken(): String? {
+        val prefs = EncryptedPrefs.getEncrypted(this, "stremini_prefs")
+        return prefs.getString("composio_token", null)
+    }
 
-    /** No-op — key is embedded */
-    private fun saveComposioToken(token: String) {}
+    /** Save the user token to encrypted prefs */
+    private fun saveComposioToken(token: String) {
+        val prefs = EncryptedPrefs.getEncrypted(this, "stremini_prefs")
+        prefs.putString("composio_token", token)
+    }
 
-    /** No-op — users connect per-service, not at dashboard level */
-    private fun openComposioConnect() {}
+    /** Open the Composio dashboard for the user to connect their accounts */
+    private fun openComposioConnect() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://composio.dev/login")).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
+    }
+
+    /** Open a URL in the browser */
+    private fun openUrl(url: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open URL: $url", e)
+        }
+    }
 
     /** MCP URL constant */
     private fun getComposioMcpUrl(): String = "https://connect.composio.dev/mcp"

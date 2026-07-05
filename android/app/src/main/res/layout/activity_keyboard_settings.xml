@@ -235,6 +235,57 @@
             </RadioGroup>
         </LinearLayout>
 
+        <!-- Composio MCP Automations -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Automations"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="12dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            android:background="@drawable/card_background"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Connect Composio MCP"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp"/>
+
+                <TextView
+                    android:id="@+id/tv_composio_mcp_status"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Link your apps (Gmail, Notion, Slack) to enable AI automations."
+                    android:textColor="#AAAAAA"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="12dp"/>
+
+                <Button
+                    android:id="@+id/btn_connect_composio"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Connect Automations"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#38BDF8"/>
+            </LinearLayout>
+        </LinearLayout>
+
         <!-- Features Info -->
         <TextView
             android:layout_width="match_parent"

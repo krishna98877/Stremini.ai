@@ -182,54 +182,104 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildComposioCard(dynamic settings, BuildContext context) {
-    // Composio is always connected (embedded consumer key).
-    // The card shows status and lets users open the connectors panel.
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF34C47C).withOpacity(0.4)),
+        border: Border.all(color: AppColors.scanCyan.withOpacity(0.4)),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFF34C47C).withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.link_rounded,
-              color: Color(0xFF34C47C),
-              size: 20,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.scanCyan.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.auto_fix_high_rounded,
+                  color: AppColors.scanCyan,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AI Automations',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Link your apps (Gmail, Notion, Slack) to enable AI automations.',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.labelSmall?.color ?? const Color(0xFF64748B),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Automations Ready',
-                  style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color ?? Colors.white,
-                    fontSize: 14,
-                  ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _connectAutomations,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF38BDF8),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'GitHub, Gmail, Discord, and 10 more services. Tap the plug icon in chat to connect.',
-                  style: TextStyle(color: Theme.of(context).textTheme.labelSmall?.color ?? const Color(0xFF64748B), fontSize: 12),
-                ),
-              ],
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              child: const Text(
+                'Connect Automations',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
       ),
     );
   }
+
+  Future<void> _connectAutomations() async {
+    _maybeHaptic(ref.read(appSettingsProvider).hapticFeedback);
+    const url = 'https://composio.dev/login';
+    try {
+      final bool success = await const MethodChannel('stremini.composio')
+          .invokeMethod('openComposioConnect');
+      if (!success) {
+        // Fallback to direct browser launch if method channel fails
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      // Fallback
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
+  }
+
+  // Helper for fallback
+  Future<void> launchUrl(Uri url, {required LaunchMode mode}) async {
+    try {
+      await const MethodChannel('stremini.keyboard').invokeMethod('openUrl', {'url': url.toString()});
+    } catch (_) {}
+  }
+  
+  enum LaunchMode { externalApplication }
 
   Widget _buildSectionHeader(String title, BuildContext context) {
     return Text(

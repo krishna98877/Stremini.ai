@@ -124,6 +124,7 @@ class ComposioClient(
     }
 
     private val prefs = EncryptedPrefs.getEncrypted(context, "composio_prefs")
+    private val userPrefs = EncryptedPrefs.getEncrypted(context, "stremini_prefs")
 
     // ── Composio Consumer API Key ──────────────────────────────────
     // The key is injected at build time via BuildConfig (sourced from
@@ -217,6 +218,33 @@ class ComposioClient(
     }
 
     // ── Connect a Service (Managed Auth via WebView) ────────────────
+
+    /**
+     * Exchange an auth code for a Bearer token.
+     * In a production environment, this call MUST be routed through your backend.
+     */
+    suspend fun exchangeCodeForToken(code: String): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            val apiKey = getDeveloperApiKey()
+            val body = JSONObject().apply {
+                put("code", code)
+            }.toString().toRequestBody("application/json".toMediaType())
+
+            val request = Request.Builder()
+                .url("$COMPOSIO_API_BASE/auth/exchange")
+                .addHeader("x-api-key", apiKey)
+                .post(body)
+                .build()
+
+            val client = secureHttpClient(useCase = "composio")
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val json = JSONObject(response.body?.string() ?: "{}")
+                    json.optString("token").takeIf { it.isNotBlank() }
+                } else null
+            }
+        }.getOrNull()
+    }
 
     /**
      * Initiate Composio managed OAuth for a service.
@@ -445,7 +473,8 @@ class ComposioClient(
         connectedAccountId: String,
         serviceId: String?
     ): String {
-        val apiKey = getDeveloperApiKey()
+        val userToken = userPrefs.getString("composio_token")
+        val apiKey = if (!userToken.isNullOrBlank()) userToken else getDeveloperApiKey()
 
         val body = JSONObject().apply {
             put("actionId", actionId)
@@ -455,7 +484,8 @@ class ComposioClient(
 
         val request = Request.Builder()
             .url("$COMPOSIO_API_BASE/actions/execute")
-            .addHeader("x-api-key", apiKey)
+            .addHeader(if (!userToken.isNullOrBlank()) "Authorization" else "x-api-key", 
+                       if (!userToken.isNullOrBlank()) "Bearer $apiKey" else apiKey)
             .addHeader("Content-Type", "application/json")
             .post(body)
             .build()

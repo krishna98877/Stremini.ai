@@ -13,6 +13,8 @@ class KeyboardSettingsActivity : AppCompatActivity() {
     private lateinit var btnSelectKeyboard: Button
     private lateinit var themeGroup: RadioGroup
     private lateinit var layoutInfo: TextView
+    private lateinit var btnConnectComposio: Button
+    private lateinit var tvComposioStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,6 +36,8 @@ class KeyboardSettingsActivity : AppCompatActivity() {
         btnSelectKeyboard = findViewById(R.id.btn_select_keyboard)
         themeGroup = findViewById(R.id.theme_group)
         layoutInfo = findViewById(R.id.layout_info)
+        btnConnectComposio = findViewById(R.id.btn_connect_composio)
+        tvComposioStatus = findViewById(R.id.tv_composio_mcp_status)
 
         // Back button
         findViewById<ImageButton>(R.id.btn_back)?.setOnClickListener {
@@ -60,6 +64,10 @@ class KeyboardSettingsActivity : AppCompatActivity() {
 
         btnSelectKeyboard.setOnClickListener {
             showInputMethodPicker()
+        }
+
+        btnConnectComposio.setOnClickListener {
+            openComposioLogin()
         }
 
         // Theme selection
@@ -103,6 +111,31 @@ class KeyboardSettingsActivity : AppCompatActivity() {
 
     private fun showInputMethodPicker() = coordinator.showInputMethodPicker()
 
+    private fun openComposioLogin() {
+        val composioAuthUrl = "https://composio.dev/login"
+        try {
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(composioAuthUrl))
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Could not open browser", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateComposioStatus() {
+        val prefs = EncryptedPrefs.getEncrypted(this, "stremini_prefs")
+        val token = prefs.getString("composio_token", null)
+        if (token != null) {
+            tvComposioStatus.text = "Status: Connected ✓"
+            tvComposioStatus.setTextColor(android.graphics.Color.parseColor("#4CAF50"))
+            btnConnectComposio.text = "Reconnect Automations"
+        } else {
+            tvComposioStatus.text = "Link your apps (Gmail, Notion, Slack) to enable AI automations."
+            tvComposioStatus.setTextColor(android.graphics.Color.parseColor("#AAAAAA"))
+            btnConnectComposio.text = "Connect Automations"
+        }
+    }
+
     private fun applyTheme(theme: String) {
         coordinator.saveTheme(theme)
         Toast.makeText(this, "Theme changed to $theme", Toast.LENGTH_SHORT).show()
@@ -111,5 +144,6 @@ class KeyboardSettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateStatus()
+        updateComposioStatus()
     }
 }

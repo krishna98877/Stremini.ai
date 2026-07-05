@@ -22,6 +22,7 @@ class MainActivityChannelRegistry(
         val openKeyboardSettings: () -> Unit,
         val showKeyboardPicker: () -> Unit,
         val openKeyboardSettingsActivity: () -> Unit,
+        val openUrl: (String) -> Unit,
         val setEventSink: (EventChannel.EventSink?) -> Unit,
         // Composio MCP
         val openComposioConnect: () -> Unit,
@@ -78,6 +79,15 @@ class MainActivityChannelRegistry(
                                 Log.e("MainActivity", "Error opening keyboard settings", it)
                                 result.error("ERROR", "Failed to open keyboard settings: ${it.message}", null)
                             }
+                    }
+                    "openUrl" -> {
+                        val url = call.argument<String>("url")
+                        if (url != null) {
+                            actions.openUrl(url)
+                            result.success(true)
+                        } else {
+                            result.error("INVALID_ARGUMENT", "URL is null", null)
+                        }
                     }
                     else -> result.notImplemented()
                 }
