@@ -640,9 +640,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             // Tag for async status updates
             tag = svc.id
             // Glassmorphic card background
-            background = android.content.res.ResourcesCompat.getDrawable(
-                resources, R.drawable.service_card_bg, null
-            )
+            background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.service_card_bg)
 
             // Service logo (vector drawable)
             val icon = ImageView(this@ChatOverlayService).apply {
