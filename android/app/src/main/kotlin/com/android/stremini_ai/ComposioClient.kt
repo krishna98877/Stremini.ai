@@ -32,11 +32,11 @@ import java.net.URLEncoder
  * - The connected account is now available for automation.
  *
  * Endpoints (all use x-api-key header with the developer key):
- * - POST /api/v1/connectedAccounts       → initiate connection (returns auth URL)
- * - GET  /api/v1/connectedAccounts        → list all connected accounts
- * - GET  /api/v1/connectedAccounts?providerName=github → check specific service
- * - DELETE /api/v1/connectedAccounts/{id} → disconnect a specific account
- * - POST /api/v1/actions/execute          → execute an automation action
+ * - POST /api/v1/sessions                 → create session for user
+ * - GET  /api/v1/sessions/{id}/toolkits   → list toolkits (shows connected status)
+ * - POST /api/v1/sessions/{id}/authorize  → generate Connect Link (returns redirect_url)
+ * - POST /api/v1/sessions/{id}/execute    → execute a tool on behalf of the user
+ * - DELETE /api/v1/connectedAccounts/{id} → disconnect a specific account (legacy)
  *
  * Get your developer key: https://composio.dev/settings → API Keys
  */
@@ -157,62 +157,125 @@ class ComposioClient(
      */
     fun isConfigured(): Boolean = getDeveloperApiKey().isNotBlank()
 
-    // ── Connected Accounts ───────────────────────────────────────────
+    // ── Session Management (official Composio Sessions flow) ────────
+    // Per the official Composio docs, the correct flow is:
+    //   1. Create a session: POST /api/v1/sessions {user_id}
+    //   2. Generate Connect Link: POST /api/v1/sessions/{id}/authorize {toolkit?}
+    //   3. Open the redirect_url in a WebView
+    //   4. List toolkits: GET /api/v1/sessions/{id}/toolkits
+    //   5. Execute tools: POST /api/v1/sessions/{id}/execute {tool_slug, params}
 
     /**
-     * Check if a specific service has a connected account.
+     * Get or create a Composio session for this device.
+     * Uses a stable user ID derived from ANDROID_ID. Session ID cached in EncryptedPrefs.
+     */
+    private suspend fun getOrCreateSession(): String = withContext(Dispatchers.IO) {
+        val cached = prefs.getString("composio_session_id")
+        if (!cached.isNullOrBlank()) return@withContext cached
+
+        val apiKey = getDeveloperApiKey()
+        val userId = getStableUserId()
+        val body = JSONObject().apply { put("user_id", userId) }
+            .toString().toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url("$COMPOSIO_API_BASE/sessions")
+            .addHeader("x-api-key", apiKey)
+            .addHeader("Content-Type", "application/json")
+            .post(body)
+            .build()
+
+        val client = secureHttpClient(10, 15, "composio")
+        client.newCall(request).execute().use { response ->
+            val json = JSONObject(response.body?.string() ?: "{}")
+            val sid = json.optString("id").ifBlank {
+                json.optJSONObject("data")?.optString("id") ?: ""
+            }
+            if (sid.isNotBlank()) prefs.putString("composio_session_id", sid)
+            sid
+        }
+    }
+
+    private fun getStableUserId(): String {
+        val cached = prefs.getString("composio_user_id")
+        if (!cached.isNullOrBlank()) return cached
+        val androidId = android.provider.Settings.Secure.getString(
+            context.contentResolver, android.provider.Settings.Secure.ANDROID_ID
+        ) ?: "stremini_${System.currentTimeMillis()}"
+        val userId = "stremini_$androidId"
+        prefs.putString("composio_user_id", userId)
+        return userId
+    }
+
+    // ── Connected Accounts (via session toolkits) ───────────────────
+
+    /**
+     * Check if a specific service has a connected account (via session toolkits).
      */
     suspend fun isServiceConnected(serviceId: String): Boolean = withContext(Dispatchers.IO) {
         runCatching {
+            val sessionId = getOrCreateSession()
+            if (sessionId.isBlank()) return@withContext false
             val apiKey = getDeveloperApiKey()
-            val client = secureHttpClient(connectTimeoutSeconds = 10, readTimeoutSeconds = 15, useCase = "composio")
+            val client = secureHttpClient(10, 15, "composio")
             val request = Request.Builder()
-                .url("$COMPOSIO_API_BASE/connectedAccounts?providerName=${URLEncoder.encode(serviceId, "UTF-8")}")
+                .url("$COMPOSIO_API_BASE/sessions/$sessionId/toolkits")
                 .addHeader("x-api-key", apiKey)
                 .get()
                 .build()
             client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val body = response.body?.string() ?: return@use false
-                    val json = JSONObject(body)
-                    val accounts = json.optJSONArray("connectedAccounts") ?: json.optJSONArray("data")
-                    accounts != null && accounts.length() > 0
-                } else false
+                if (!response.isSuccessful) return@use false
+                val body = response.body?.string() ?: return@use false
+                val json = JSONObject(body)
+                val toolkits = json.optJSONArray("items") ?: json.optJSONArray("toolkits") ?: json.optJSONArray("data")
+                if (toolkits != null) {
+                    for (i in 0 until toolkits.length()) {
+                        val tk = toolkits.optJSONObject(i) ?: continue
+                        if (tk.optString("slug") == serviceId) {
+                            return@use tk.optBoolean("is_connected", false)
+                                || tk.optString("status") == "connected"
+                                || !tk.optString("connected_account_id").isNullOrBlank()
+                        }
+                    }
+                }
+                false
             }
         }.getOrDefault(false)
     }
 
     /**
-     * Get all connected account IDs grouped by service provider.
-     * Returns map of providerName → list of connectedAccountIds.
+     * Get all connected services via session toolkits endpoint.
      */
     suspend fun getConnectedServices(): Map<String, List<String>> = withContext(Dispatchers.IO) {
         runCatching {
+            val sessionId = getOrCreateSession()
+            if (sessionId.isBlank()) return@withContext emptyMap<String, List<String>>()
             val apiKey = getDeveloperApiKey()
-            val client = secureHttpClient(connectTimeoutSeconds = 10, readTimeoutSeconds = 15, useCase = "composio")
+            val client = secureHttpClient(10, 15, "composio")
             val request = Request.Builder()
-                .url("$COMPOSIO_API_BASE/connectedAccounts")
+                .url("$COMPOSIO_API_BASE/sessions/$sessionId/toolkits")
                 .addHeader("x-api-key", apiKey)
                 .get()
                 .build()
             client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val body = response.body?.string() ?: return@use emptyMap()
-                    val json = JSONObject(body)
-                    val accounts = json.optJSONArray("connectedAccounts")
-                        ?: json.optJSONArray("data")
-                        ?: return@use emptyMap()
-                    val result = mutableMapOf<String, MutableList<String>>()
-                    for (i in 0 until accounts.length()) {
-                        val acct = accounts.getJSONObject(i)
-                        val provider = acct.optString("providerName", acct.optString("provider", ""))
-                        val id = acct.optString("id", acct.optString("connectedAccountId", ""))
-                        if (provider.isNotBlank() && id.isNotBlank()) {
-                            result.getOrPut(provider) { mutableListOf() }.add(id)
+                if (!response.isSuccessful) return@use emptyMap<String, List<String>>()
+                val body = response.body?.string() ?: return@use emptyMap<String, List<String>>()
+                val json = JSONObject(body)
+                val toolkits = json.optJSONArray("items") ?: json.optJSONArray("toolkits") ?: json.optJSONArray("data")
+                val result = mutableMapOf<String, MutableList<String>>()
+                if (toolkits != null) {
+                    for (i in 0 until toolkits.length()) {
+                        val tk = toolkits.optJSONObject(i) ?: continue
+                        val slug = tk.optString("slug")
+                        val isConnected = tk.optBoolean("is_connected", false)
+                            || tk.optString("status") == "connected"
+                            || !tk.optString("connected_account_id").isNullOrBlank()
+                        if (slug.isNotBlank() && isConnected) {
+                            result[slug] = mutableListOf(tk.optString("connected_account_id", "connected"))
                         }
                     }
-                    result
-                } else emptyMap()
+                }
+                result
             }
         }.getOrDefault(emptyMap())
     }
@@ -260,137 +323,79 @@ class ComposioClient(
      * NO API KEY IS NEEDED FROM THE END USER.
      * The developer API key is used to authorize the connection request.
      */
+    /**
+     * Initiate Composio managed OAuth using the official Sessions + Connect Links flow.
+     *
+     * 1. Get or create a session for this user
+     * 2. POST /sessions/{id}/authorize with {toolkit} -> get redirect_url
+     * 3. Launch ComposioAuthActivity (WebView) with the redirect_url
+     */
     fun connectService(serviceId: String) {
         if (!isConfigured()) {
-            Toast.makeText(context, "Automation not configured. Set the Composio developer key in Settings.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Composio not configured.", Toast.LENGTH_LONG).show()
             return
         }
-
         workScope.launch(Dispatchers.IO) {
-            // Check connectivity BEFORE making the API call
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-            val isConnected = cm?.activeNetworkInfo?.isConnected == true
-            if (!isConnected) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "No internet. Connect to WiFi or mobile data and try again.", Toast.LENGTH_SHORT).show()
-                }
-                return@launch
-            }
-
             try {
+                val sessionId = getOrCreateSession()
+                if (sessionId.isBlank()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Failed to create Composio session", Toast.LENGTH_LONG).show()
+                    }
+                    return@launch
+                }
                 val apiKey = getDeveloperApiKey()
-                val serviceName = ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId
                 val body = JSONObject().apply {
-                    put("providerName", serviceId)
-                    put("redirectUri", REDIRECT_URI)
+                    put("toolkit", serviceId)
+                    put("redirect_uri", REDIRECT_URI)
                 }.toString().toRequestBody("application/json".toMediaType())
 
                 val request = Request.Builder()
-                    .url("$COMPOSIO_API_BASE/connectedAccounts")
+                    .url("$COMPOSIO_API_BASE/sessions/$sessionId/authorize")
                     .addHeader("x-api-key", apiKey)
                     .addHeader("Content-Type", "application/json")
                     .post(body)
                     .build()
 
-                val client = secureHttpClient(
-                    connectTimeoutSeconds = 10, readTimeoutSeconds = 15, useCase = "composio"
-                )
-                val response = client.newCall(request).execute()
-
-                response.use { resp ->
-                    if (resp.isSuccessful) {
-                        val respBody = resp.body?.string() ?: "{}"
-                        val json = JSONObject(respBody)
-
-                        // Composio returns the auth URL — try multiple field names
-                        val authUrl = json.optString("redirectUrl")
-                            .takeIf { it.isNotBlank() }
-                            ?: json.optString("authUrl")
-                                .takeIf { it.isNotBlank() }
-                            ?: json.optString("connectionUrl")
-                                .takeIf { it.isNotBlank() }
-                            ?: json.optString("url")
-                                .takeIf { it.isNotBlank() }
-
-                        if (authUrl != null) {
-                            // Open in ComposioAuthActivity (WebView) — NOT external browser
-                            withContext(Dispatchers.Main) {
-                                val intent = Intent(context, ComposioAuthActivity::class.java).apply {
-                                    putExtra(ComposioAuthActivity.EXTRA_AUTH_URL, authUrl)
-                                    putExtra(ComposioAuthActivity.EXTRA_SERVICE_NAME, serviceName)
-                                    putExtra(ComposioAuthActivity.EXTRA_SERVICE_ID, serviceId)
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                }
-                                
-                                val pending = PendingIntent.getActivity(
-                                    context, serviceId.hashCode(), intent,
-                                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                                )
-
-                                try {
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Cannot start ComposioAuthActivity from Service", e)
-                                    
-                                    // Fallback: fire a system notification. Tapping it opens the WebView.
-                                    // This respects Android 12+ background activity launch restrictions.
-                                    try {
-                                        val nm = androidx.core.app.NotificationManagerCompat.from(context)
-                                        val notif = androidx.core.app.NotificationCompat.Builder(context, "chat_head_service")
-                                            .setSmallIcon(R.drawable.ic_stremini_logo)
-                                            .setContentTitle("Connect $serviceName")
-                                            .setContentText("Tap to link your $serviceName account.")
-                                            .setContentIntent(pending)
-                                            .setAutoCancel(true)
-                                            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
-                                            .build()
-                                        
-                                        nm.notify(serviceId.hashCode(), notif)
-                                        Toast.makeText(context, "Tap the notification to connect $serviceName", Toast.LENGTH_LONG).show()
-                                    } catch (notifEx: Exception) {
-                                        Log.e(TAG, "Notification fallback failed", notifEx)
-                                        openInCustomTab(authUrl)
-                                    }
-                                }
-                            }
-                        } else {
-                            // No URL returned — redirect to Composio dashboard for manual connection
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(
-                                    context,
-                                    "Opening Composio dashboard to connect $serviceName...",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                openInCustomTab("$COMPOSIO_CONNECT_BASE/connect-apps")
+                val client = secureHttpClient(10, 15, "composio")
+                client.newCall(request).execute().use { resp ->
+                    val respBody = resp.body?.string() ?: "{}"
+                    val json = JSONObject(respBody)
+                    val authUrl = json.optString("redirect_url").ifBlank {
+                        json.optString("redirectUrl").ifBlank {
+                            json.optString("url").ifBlank {
+                                json.optJSONObject("data")?.optString("redirect_url") ?: ""
                             }
                         }
-                    } else {
-                        Log.e(TAG, "connectService(${serviceId}) failed: ${resp.code}")
+                    }
+                    if (authUrl.isNotBlank()) {
                         withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Connection failed (error ${resp.code}). Please try again.", Toast.LENGTH_SHORT).show()
+                            val intent = Intent(context, ComposioAuthActivity::class.java).apply {
+                                putExtra(ComposioAuthActivity.EXTRA_AUTH_URL, authUrl)
+                                putExtra(ComposioAuthActivity.EXTRA_SERVICE_NAME,
+                                    ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId)
+                                putExtra(ComposioAuthActivity.EXTRA_SERVICE_ID, serviceId)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            try { context.startActivity(intent) }
+                            catch (e: Exception) { Log.e(TAG, "Cannot start ComposioAuthActivity", e); openInCustomTab(authUrl) }
+                        }
+                    } else {
+                        Log.e(TAG, "No auth URL in response: $respBody")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Failed to get connection link", Toast.LENGTH_LONG).show()
                         }
                     }
                 }
-            } catch (e: java.net.UnknownHostException) {
-                Log.e(TAG, "connectService: no internet", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Cannot reach Composio. Check your internet.", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: SecurityException) {
-                Log.e(TAG, "connectService: security/background restriction", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Tap the notification to finish connecting.", Toast.LENGTH_LONG).show()
-                }
             } catch (e: Exception) {
-                Log.e(TAG, "connectService(${serviceId}) error", e)
+                Log.e(TAG, "Error initiating connection for $serviceId", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Could not open connection. Try again.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Connection failed: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
 
-    /** Fallback: open URL in Chrome Custom Tab */
     private fun openInCustomTab(url: String) {
         try {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
@@ -477,13 +482,13 @@ class ComposioClient(
         val apiKey = if (!userToken.isNullOrBlank()) userToken else getDeveloperApiKey()
 
         val body = JSONObject().apply {
-            put("actionId", actionId)
-            put("inputParams", JSONObject(params))
-            put("connectedAccountId", connectedAccountId)
+            put("tool_slug", actionId)
+            put("params", JSONObject(params))
+            if (connectedAccountId.isNotBlank()) put("connected_account_id", connectedAccountId)
         }.toString().toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
-            .url("$COMPOSIO_API_BASE/actions/execute")
+            .url("$COMPOSIO_API_BASE/sessions/${getOrCreateSession()}/execute")
             .addHeader(if (!userToken.isNullOrBlank()) "Authorization" else "x-api-key", 
                        if (!userToken.isNullOrBlank()) "Bearer $apiKey" else apiKey)
             .addHeader("Content-Type", "application/json")
