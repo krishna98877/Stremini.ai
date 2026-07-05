@@ -110,8 +110,9 @@ class ComposioClient(
             "create_repo"     to "GITHUB_CREATE_A_REPOSITORY",
             "list_repos"      to "GITHUB_LIST_REPOSITORIES_FOR_AUTHENTICATED_USER",
             "create_pr"       to "GITHUB_CREATE_A_PULL_REQUEST",
-            "post_tweet"      to "TWITTER_CREATE_A_TWEET",
-            "get_timeline"    to "TWITTER_GET_USER_TIMELINE",
+            "send_whatsapp"   to "WHATSAPP_SEND_MESSAGE",
+            "send_instagram"  to "INSTAGRAM_SEND_DM",
+            "post_facebook"   to "FACEBOOK_CREATE_POST",
             "send_discord"    to "DISCORD_SEND_A_MESSAGE_TO_A_CHANNEL",
             "linkedin_post"   to "LINKEDIN_CREATE_A_POST",
             "reddit_post"     to "REDDIT_CREATE_A_POST",
@@ -121,7 +122,21 @@ class ComposioClient(
             "update_sheet"    to "GOOGLE_SHEETS_UPDATE_SHEET",
             "upload_youtube"  to "YOUTUBE_UPLOAD_A_VIDEO",
             "youtube_comment" to "YOUTUBE_ADD_COMMENT",
-            "tiktok_post"     to "TIKTOK_CREATE_A_VIDEO",
+        )
+
+        /** Map serviceId → action ID prefix for LLM prompt filtering */
+        val SERVICE_ACTION_PREFIX = mapOf(
+            "github" to "GITHUB",
+            "gmail" to "GMAIL",
+            "whatsapp" to "WHATSAPP",
+            "instagram" to "INSTAGRAM",
+            "facebook" to "FACEBOOK",
+            "googledrive" to "GOOGLE_DRIVE",
+            "discord" to "DISCORD",
+            "linkedin" to "LINKEDIN",
+            "reddit" to "REDDIT",
+            "googlesheets" to "GOOGLE_SHEETS",
+            "youtube" to "YOUTUBE",
         )
     }
 
@@ -540,7 +555,7 @@ class ComposioClient(
             put("arguments", JSONObject(params))
             val userId = getStableUserId()
             put("entity_id", userId)
-            if (connectedAccountId.isNotBlank()) put("connected_account_id", connectedAccountId)
+            // Don't pass connected_account_id — let Composio auto-resolve from entity_id + toolkit
         }.toString().toRequestBody("application/json".toMediaType())
 
         val sid = getOrCreateSession()
@@ -589,13 +604,23 @@ class ComposioClient(
                 val resultData = json.optJSONObject("result")
                     ?: json.optJSONObject("data")
                     ?: json
-                resultData.optString("message",
-                    resultData.optString("response",
-                        resultData.optString("output",
-                            if (resultData.length() > 0) resultData.toString().take(500) else "Done."
-                        )
-                    )
-                )
+                // Check if the action was actually successful
+                val successful = resultData.optBoolean("successful", true)
+                if (!successful) {
+                    val errorMsg = resultData.optString("error", "Action failed on Composio's side")
+                    error("Automation failed: $errorMsg")
+                }
+                // Extract a clean success message
+                when {
+                    resultData.has("data") -> {
+                        val data = resultData.opt("data")
+                        if (data is String) data else resultData.toString().take(300)
+                    }
+                    resultData.has("message") -> resultData.optString("message")
+                    resultData.has("response") -> resultData.optString("response")
+                    resultData.has("output") -> resultData.optString("output")
+                    else -> "Action completed successfully."
+                }
             }
     }
 
@@ -711,6 +736,19 @@ class ComposioClient(
                 }
             }
 
+            // ── AI Learning: check cache first ──────────────────────────
+            val cached = getCachedAutomation(instruction)
+            if (cached != null) {
+                val (cachedActionId, cachedParams) = cached
+                Log.i(TAG, "Automation cache HIT: $instruction → $cachedActionId")
+                val accountId = connected[service?.id ?: ""]?.firstOrNull()
+                    ?: error("Service not connected. Connect it first.")
+                return@runCatching executeAction(
+                    cachedActionId, cachedParams, accountId,
+                    serviceId = service?.id
+                ).getOrThrow()
+            }
+
             // ── Single-service fast path ─────────────────────────────
             val service = detectService(instruction)
                 ?: error("Couldn't detect which service to use. Try mentioning the service name.")
@@ -732,7 +770,10 @@ class ComposioClient(
             }
 
             val (actionId, params) = actionParams
-            executeAction(actionId, params, accountId, serviceId = service.id).getOrThrow()
+            val result = executeAction(actionId, params, accountId, serviceId = service.id).getOrThrow()
+            // Cache this successful automation for instant repeat
+            cacheAutomationResult(instruction, actionId, params)
+            result
         }
     }
 
@@ -821,7 +862,9 @@ Example multi-service: [{"serviceId":"gmail","serviceName":"Gmail","actionId":"G
         groqClient: GroqClient
     ): Pair<String, Map<String, Any>>? {
         val prompt = """You are an automation intent parser. Given a user request for ${service.name}, return a JSON object with exactly two fields:
-- "actionId": The most appropriate Composio action ID for ${service.name}. Common ones: ${INTENT_ACTION_MAP.values.filter { it.startsWith(service.id.uppercase()) }.joinToString(", ")}
+- "actionId": The most appropriate Composio action ID for ${service.name}. Common ones: ${INTENT_ACTION_MAP.values.filter { aid ->
+    SERVICE_ACTION_PREFIX[service.id]?.let { prefix -> aid.startsWith(prefix) } ?: false
+}.joinToString(", ")}
 - "params": A flat key-value map of parameters needed for this action.
 
 User request: ${protectForAi(instruction, source = "automation request")}
@@ -894,6 +937,10 @@ Return ONLY valid JSON, nothing else. Example: {"actionId":"GMAIL_SEND_EMAIL","p
             "reddit" -> "REDDIT_CREATE_A_POST" to mapOf("title" to instruction, "text" to instruction)
             "googledrive" -> "GOOGLE_DRIVE_UPLOAD_FILE" to mapOf("content" to instruction)
             "googlesheets" -> "GOOGLE_SHEETS_READ_SHEET" to mapOf("spreadsheetId" to "", "range" to "A1:Z100")
+            "whatsapp" -> "WHATSAPP_SEND_MESSAGE" to mapOf("to" to "", "message" to instruction)
+            "instagram" -> "INSTAGRAM_SEND_DM" to mapOf("username" to "", "message" to instruction)
+            "facebook" -> "FACEBOOK_CREATE_POST" to mapOf("message" to instruction)
+            "youtube" -> "YOUTUBE_UPLOAD_A_VIDEO" to mapOf("title" to instruction, "description" to "")
             else -> null
         }
     }
@@ -918,5 +965,33 @@ Return ONLY valid JSON, nothing else. Example: {"actionId":"GMAIL_SEND_EMAIL","p
             }
         }
         return bestMatch
+    }
+
+    // ── AI Learning: cache successful automations ───────────────────
+    // Remembers instruction → (actionId, params) mappings so repeat
+    // commands skip the LLM parse step entirely (0ms vs 2-5s).
+
+    private fun cacheAutomationResult(instruction: String, actionId: String, params: Map<String, Any>) {
+        val key = "auto_cache_${instruction.lowercase().hashCode()}"
+        val json = JSONObject().apply {
+            put("actionId", actionId)
+            put("params", JSONObject(params))
+            put("instruction", instruction)
+            put("timestamp", System.currentTimeMillis())
+        }
+        prefs.putString(key, json.toString())
+    }
+
+    private fun getCachedAutomation(instruction: String): Pair<String, Map<String, Any>>? {
+        val key = "auto_cache_${instruction.lowercase().hashCode()}"
+        val raw = prefs.getString(key) ?: return null
+        return runCatching {
+            val json = JSONObject(raw)
+            val actionId = json.getString("actionId")
+            val paramsJson = json.optJSONObject("params") ?: JSONObject()
+            val params = mutableMapOf<String, Any>()
+            paramsJson.keys().forEach { k -> params[k] = paramsJson.get(k) }
+            Pair(actionId, params)
+        }.getOrNull()
     }
 }
