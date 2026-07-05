@@ -239,8 +239,19 @@ class ComposioClient(
         }
 
         workScope.launch(Dispatchers.IO) {
+            // Check connectivity BEFORE making the API call
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
+            val isConnected = cm?.activeNetworkInfo?.isConnected == true
+            if (!isConnected) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "No internet. Connect to WiFi or mobile data and try again.", Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+
             try {
                 val apiKey = getDeveloperApiKey()
+                val serviceName = ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId
                 val body = JSONObject().apply {
                     put("providerName", serviceId)
                     put("redirectUri", REDIRECT_URI)
@@ -278,17 +289,40 @@ class ComposioClient(
                             withContext(Dispatchers.Main) {
                                 val intent = Intent(context, ComposioAuthActivity::class.java).apply {
                                     putExtra(ComposioAuthActivity.EXTRA_AUTH_URL, authUrl)
-                                    putExtra(ComposioAuthActivity.EXTRA_SERVICE_NAME,
-                                        ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId)
+                                    putExtra(ComposioAuthActivity.EXTRA_SERVICE_NAME, serviceName)
                                     putExtra(ComposioAuthActivity.EXTRA_SERVICE_ID, serviceId)
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                                 }
+                                
+                                val pending = PendingIntent.getActivity(
+                                    context, serviceId.hashCode(), intent,
+                                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                                )
+
                                 try {
                                     context.startActivity(intent)
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "Cannot start ComposioAuthActivity", e)
-                                    // Fallback: open in Chrome Custom Tab
-                                    openInCustomTab(authUrl)
+                                    Log.e(TAG, "Cannot start ComposioAuthActivity from Service", e)
+                                    
+                                    // Fallback: fire a system notification. Tapping it opens the WebView.
+                                    // This respects Android 12+ background activity launch restrictions.
+                                    try {
+                                        val nm = androidx.core.app.NotificationManagerCompat.from(context)
+                                        val notif = androidx.core.app.NotificationCompat.Builder(context, "chat_head_service")
+                                            .setSmallIcon(R.drawable.ic_stremini_logo)
+                                            .setContentTitle("Connect $serviceName")
+                                            .setContentText("Tap to link your $serviceName account.")
+                                            .setContentIntent(pending)
+                                            .setAutoCancel(true)
+                                            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                                            .build()
+                                        
+                                        nm.notify(serviceId.hashCode(), notif)
+                                        Toast.makeText(context, "Tap the notification to connect $serviceName", Toast.LENGTH_LONG).show()
+                                    } catch (notifEx: Exception) {
+                                        Log.e(TAG, "Notification fallback failed", notifEx)
+                                        openInCustomTab(authUrl)
+                                    }
                                 }
                             }
                         } else {
@@ -296,7 +330,7 @@ class ComposioClient(
                             withContext(Dispatchers.Main) {
                                 Toast.makeText(
                                     context,
-                                    "Opening Composio dashboard to connect ${ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId}...",
+                                    "Opening Composio dashboard to connect $serviceName...",
                                     Toast.LENGTH_SHORT
                                 ).show()
                                 openInCustomTab("$COMPOSIO_CONNECT_BASE/connect-apps")
@@ -309,11 +343,20 @@ class ComposioClient(
                         }
                     }
                 }
-                // response is already closed by .use {} above — no leak
+            } catch (e: java.net.UnknownHostException) {
+                Log.e(TAG, "connectService: no internet", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Cannot reach Composio. Check your internet.", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "connectService: security/background restriction", e)
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Tap the notification to finish connecting.", Toast.LENGTH_LONG).show()
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "connectService(${serviceId}) error", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Network error. Check your connection.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Could not open connection. Try again.", Toast.LENGTH_SHORT).show()
                 }
             }
         }

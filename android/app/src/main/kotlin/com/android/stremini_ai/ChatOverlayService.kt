@@ -112,6 +112,10 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     private val IDLE_ALPHA       = 0.5f    // just dim when idle
     private val IDLE_ANIM_DURATION = 400L
 
+    private val touchSlop by lazy {
+        android.view.ViewConfiguration.get(this).scaledTouchSlop
+    }
+
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var aiBackendClient: AIBackendClient
     private lateinit var chatCommandCoordinator: ChatCommandCoordinator
@@ -556,10 +560,17 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         )
         // Medium-size centered panel (not full screen)
         lp.gravity = Gravity.CENTER
-        lp.width = WindowManager.LayoutParams.WRAP_CONTENT
-        lp.height = WindowManager.LayoutParams.WRAP_CONTENT
-
+        
         connectorsView = LayoutInflater.from(this).inflate(R.layout.connectors_panel_layout, null)
+        
+        val density = resources.displayMetrics.density
+        val screenHeight = resources.displayMetrics.heightPixels
+        val maxPanelHeight = (screenHeight * 0.72f).toInt()  // never exceed 72% of screen
+
+        lp.width = (340 * density).toInt()
+        lp.height = WindowManager.LayoutParams.WRAP_CONTENT
+        // The XML now caps the ScrollView at 380dp, but we set a max height constraint here too
+        connectorsView?.minimumHeight = (200 * density).toInt()
 
         // Wire up search filter
         val searchInput = connectorsView?.findViewById<EditText>(R.id.composio_search_input)
@@ -734,8 +745,10 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             }
             addView(status)
 
-            // Click handler
-            setOnClickListener {
+            // Click handler — assigned to the status button directly to avoid touch bubbling issues
+            status.isClickable = true
+            status.isFocusable = true
+            status.setOnClickListener {
                 if (status.text == "Connected") {
                     // Optimistic UI update
                     status.text = "Disconnecting..."
@@ -1146,7 +1159,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
                 if (isWindowResizing || preventPositionUpdates) return true
                 val dx = (event.rawX - initialTouchX).toInt()
                 val dy = (event.rawY - initialTouchY).toInt()
-                if (abs(dx) > 10 || abs(dy) > 10) {
+                if (abs(dx) > touchSlop || abs(dy) > touchSlop) {
                     hasMoved = true
                     if (!isMenuExpanded) {
                         isDragging = true

@@ -4,7 +4,6 @@
     android:id="@+id/connectors_panel"
     android:layout_width="340dp"
     android:layout_height="wrap_content"
-    android:maxHeight="520dp"
     android:orientation="vertical"
     android:background="@drawable/panel_bg_dark"
     android:elevation="16dp"
@@ -23,7 +22,7 @@
             android:layout_width="18dp"
             android:layout_height="18dp"
             android:src="@drawable/ic_connectors"
-            android:tint="#3B82F6"
+            android:tint="#38BDF8"
             android:layout_marginEnd="10dp" />
 
         <TextView
@@ -115,7 +114,7 @@
             android:layout_width="14dp"
             android:layout_height="14dp"
             android:src="@drawable/ic_composio"
-            android:tint="#3B82F6"
+            android:tint="#38BDF8"
             android:layout_marginEnd="8dp" />
 
         <TextView
@@ -130,8 +129,7 @@
     <!-- Scrollable services grid (3 columns) -->
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
+        android:layout_height="380dp"
         android:fadeScrollbars="true"
         android:scrollbars="vertical"
         android:paddingBottom="4dp"
