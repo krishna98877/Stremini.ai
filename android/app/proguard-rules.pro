@@ -86,4 +86,9 @@
 }
 
 # ── Security: prevent debug information leakage ──────────────────
--removeauxiliaryclassattributes
+# NOTE: -removeauxiliaryclassattributes was removed because R8 (the default
+# shrinker in AGP 8.x) doesn't recognize this ProGuard option and fails with
+# "R8: Unknown option '-removeauxiliaryclassattributes'". The equivalent
+# behavior (stripping Auxiliary Class Attributes) is achieved via
+# -keepattributes SourceFile,LineNumberTable above (which keeps only the
+# minimum debug info needed for crash stack traces).
