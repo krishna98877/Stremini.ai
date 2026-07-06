@@ -136,10 +136,10 @@
 
             <ImageView
                 android:id="@+id/connectors_toggle_icon"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:src="@drawable/ic_connectors"
-                android:tint="#3B82F6"
+                android:tint="#FFFFFF"
                 android:layout_gravity="center"
                 android:scaleType="fitCenter" />
 
@@ -150,6 +150,8 @@
                 android:layout_height="16dp"
                 android:background="@drawable/circle_bg_blue"
                 android:layout_gravity="bottom|end"
+                android:layout_marginBottom="-2dp"
+                android:layout_marginEnd="-2dp"
                 android:visibility="gone"
                 android:textSize="9sp"
                 android:textColor="#FFFFFF"

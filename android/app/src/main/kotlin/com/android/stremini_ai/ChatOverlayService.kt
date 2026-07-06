@@ -73,6 +73,9 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     private lateinit var overlayView:   View
     private lateinit var params:        WindowManager.LayoutParams
     private var floatingChatView:   View? = null
+    private var connectedAppsPanel: View? = null
+    private var isConnectedAppsPanelVisible = false
+    private val activeConnectors = mutableMapOf<String, Boolean>()
     private var floatingChatParams: WindowManager.LayoutParams? = null
     private var isChatbotVisible    = false
 
@@ -884,6 +887,130 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         }
     }
 
+    private fun toggleConnectedAppsPanel() {
+        if (isConnectedAppsPanelVisible) {
+            hideConnectedAppsPanel()
+        } else {
+            showConnectedAppsPanel()
+        }
+    }
+
+    private fun showConnectedAppsPanel() {
+        if (isConnectedAppsPanelVisible) return
+        val chatView = floatingChatView ?: return
+
+        connectedAppsPanel = LayoutInflater.from(this).inflate(R.layout.connected_apps_panel, null)
+
+        val typeParam = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+        val lp = WindowManager.LayoutParams(
+            260, WindowManager.LayoutParams.WRAP_CONTENT, typeParam,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+                WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            PixelFormat.TRANSLUCENT
+        )
+        lp.gravity = Gravity.BOTTOM or Gravity.END
+        lp.x = dpToPx(20f)
+        lp.y = dpToPx(160f)
+
+        // Build the list of connected apps with toggles
+        val list = connectedAppsPanel?.findViewById<LinearLayout>(R.id.connected_apps_list)
+        val emptyText = connectedAppsPanel?.findViewById<TextView>(R.id.tv_no_connected)
+        val countText = connectedAppsPanel?.findViewById<TextView>(R.id.tv_connected_count)
+
+        serviceScope.launch {
+            val connected = composioClient.getConnectedServices()
+            val connectedServices = ALL_SERVICES.filter { connected.containsKey(it.id) }
+
+            withContext(Dispatchers.Main) {
+                list?.removeAllViews()
+                if (connectedServices.isEmpty()) {
+                    emptyText?.visibility = View.VISIBLE
+                    countText?.text = "0"
+                } else {
+                    emptyText?.visibility = View.GONE
+                    countText?.text = connectedServices.size.toString()
+
+                    for (svc in connectedServices) {
+                        val row = LinearLayout(this@ChatOverlayService).apply {
+                            orientation = LinearLayout.HORIZONTAL
+                            gravity = Gravity.CENTER_VERTICAL
+                            setPadding(0, dpToPx(6f), 0, dpToPx(6f))
+                        }
+
+                        // App logo
+                        val icon = ImageView(this@ChatOverlayService).apply {
+                            setImageResource(svc.iconRes)
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            val size = dpToPx(24f)
+                            layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                                marginEnd = dpToPx(10f)
+                            }
+                        }
+                        row.addView(icon)
+
+                        // App name
+                        val name = TextView(this@ChatOverlayService).apply {
+                            text = svc.name
+                            setTextColor(Color.parseColor("#D4D4D8"))
+                            textSize = 13f
+                            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                        }
+                        row.addView(name)
+
+                        // Toggle switch
+                        val toggle = android.widget.Switch(this@ChatOverlayService).apply {
+                            val isActive = activeConnectors[svc.id] ?: true
+                            isChecked = isActive
+                            trackDrawable = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.toggle_bg)
+                            thumbDrawable = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.toggle_thumb)
+                            setOnCheckedChangeListener { _, isChecked ->
+                                activeConnectors[svc.id] = isChecked
+                                if (isChecked) {
+                                    Toast.makeText(this@ChatOverlayService, "${svc.name} activated", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(this@ChatOverlayService, "${svc.name} deactivated", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                        row.addView(toggle)
+
+                        list?.addView(row)
+
+                        // Initialize active state
+                        if (!activeConnectors.containsKey(svc.id)) {
+                            activeConnectors[svc.id] = true
+                        }
+                    }
+                }
+            }
+        }
+
+        // Smooth fade-in
+        connectedAppsPanel?.alpha = 0f
+        connectedAppsPanel?.scaleY = 0.95f
+        try { windowManager.addView(connectedAppsPanel, lp) } catch (_: Exception) {}
+        connectedAppsPanel?.animate()
+            ?.alpha(1f)?.scaleY(1f)
+            ?.setDuration(200)?.setInterpolator(DecelerateInterpolator())?.start()
+
+        isConnectedAppsPanelVisible = true
+    }
+
+    private fun hideConnectedAppsPanel() {
+        if (!isConnectedAppsPanelVisible) return
+        isConnectedAppsPanelVisible = false
+        connectedAppsPanel?.animate()
+            ?.alpha(0f)?.scaleY(0.95f)
+            ?.setDuration(150)?.setInterpolator(AccelerateInterpolator())
+            ?.withEndAction {
+                try { windowManager.removeView(connectedAppsPanel) } catch (_: Exception) {}
+                connectedAppsPanel = null
+            }?.start()
+    }
+
     private fun showFloatingChatbot() {
         if (isChatbotVisible) return
         floatingChatView = LayoutInflater.from(this).inflate(R.layout.floating_chatbot_layout, null)
@@ -971,7 +1098,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
 
         // ── Connectors toggle (wire icon like ChatGPT plugin button)
         view.findViewById<FrameLayout>(R.id.btn_connectors_toggle)?.setOnClickListener {
-            if (isConnectorsVisible) { hideConnectorsPanel() } else { showConnectorsPanel() }
+            toggleConnectedAppsPanel()
         }
 
         // ── Voice input
@@ -1117,6 +1244,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     private fun hideFloatingChatbot() {
         if (!isChatbotVisible) return
         stopChatVoiceInput()
+        hideConnectedAppsPanel()
         // Smooth fade-out + scale-down animation
         floatingChatView?.animate()
             ?.alpha(0f)

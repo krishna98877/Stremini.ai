@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Connected apps toggle panel — shows only connected apps with toggle switches -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/connected_apps_panel"
+    android:layout_width="260dp"
+    android:layout_height="wrap_content"
+    android:maxHeight="320dp"
+    android:orientation="vertical"
+    android:background="@drawable/panel_premium_bg"
+    android:elevation="16dp"
+    android:clipToOutline="true"
+    android:padding="16dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="12dp">
+
+        <ImageView
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:src="@drawable/ic_connectors"
+            android:tint="#3B82F6"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Active Connectors"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tv_connected_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textColor="#71717A"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#1AFFFFFF"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Connected apps list (populated programmatically) -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fadeScrollbars="true">
+
+        <LinearLayout
+            android:id="@+id/connected_apps_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </ScrollView>
+
+    <!-- Empty state -->
+    <TextView
+        android:id="@+id/tv_no_connected"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="No connectors active. Connect an app to get started."
+        android:textColor="#52525B"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:padding="16dp"
+        android:visibility="gone" />
+
+</LinearLayout>
