@@ -34,7 +34,7 @@ const List<ComposioService> kComposioServices = [
   ComposioService(id: 'reddit', name: 'Reddit', keywords: ['subreddit', 'reddit post', 'reddit', 'upvote'], colorValue: 0xFFFF4500, iconChar: 'R'),
   ComposioService(id: 'googlesheets', name: 'Google Sheets', keywords: ['google sheets', 'spreadsheet', 'sheet', 'column', 'row', 'cell'], colorValue: 0xFF0F9D58, iconChar: 'S'),
   ComposioService(id: 'youtube', name: 'YouTube', keywords: ['youtube', 'youtube video', 'youtube channel', 'upload video', 'subscribe'], colorValue: 0xFFFF0000, iconChar: 'Y'),
-]
+];
 
 /// Manages Composio integration via REST API.
 ///
