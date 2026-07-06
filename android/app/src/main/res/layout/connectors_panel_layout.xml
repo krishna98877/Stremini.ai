@@ -1,154 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/connectors_panel"
-    android:layout_width="280dp"
-    android:layout_height="380dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:maxHeight="420dp"
     android:orientation="vertical"
-    android:background="@drawable/panel_premium_bg"
+    android:background="@drawable/manus_panel_bg"
     android:elevation="20dp"
     android:clipToOutline="true">
-
-    <View
-        android:layout_width="40dp"
-        android:layout_height="4dp"
-        android:layout_gravity="center_horizontal"
-        android:background="@drawable/drag_handle_pill"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="12dp" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:paddingStart="20dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="10dp">
-
-        <View
-            android:layout_width="8dp"
-            android:layout_height="8dp"
-            android:background="@drawable/circle_bg_blue"
-            android:layout_marginEnd="10dp" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Automations"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tv_composio_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0 connected"
-            android:textColor="#71717A"
-            android:textSize="11sp"
-            android:layout_marginEnd="10dp" />
-
-        <ImageView
-            android:id="@+id/btn_close_connectors"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
-            android:tint="#71717A"
-            android:padding="3dp"
-            android:background="@drawable/close_btn_bg" />
+    <View android:layout_width="40dp" android:layout_height="4dp" android:layout_gravity="center_horizontal" android:background="@drawable/drag_handle_pill" android:layout_marginTop="10dp" android:layout_marginBottom="10dp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="20dp" android:paddingEnd="12dp" android:paddingBottom="8dp">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Connectors" android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold" />
+        <TextView android:id="@+id/tv_composio_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 connected" android:textColor="#71717A" android:textSize="12sp" android:layout_marginEnd="12dp" />
+        <ImageView android:id="@+id/btn_close_connectors" android:layout_width="28dp" android:layout_height="28dp" android:src="@android:drawable/ic_menu_close_clear_cancel" android:tint="#71717A" android:padding="4dp" />
     </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/composio_search_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:background="@drawable/search_premium_bg"
-        android:padding="10dp"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp"
-        android:layout_marginBottom="10dp">
-
-        <ImageView
-            android:layout_width="16dp"
-            android:layout_height="16dp"
-            android:src="@android:drawable/ic_menu_search"
-            android:tint="#52525B"
-            android:layout_marginEnd="8dp" />
-
-        <EditText
-            android:id="@+id/composio_search_input"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="Search services..."
-            android:textColorHint="#52525B"
-            android:textColor="#FFFFFF"
-            android:textSize="13sp"
-            android:background="@android:color/transparent"
-            android:inputType="text"
-            android:imeOptions="actionSearch"
-            android:singleLine="true" />
-
-        <TextView
-            android:id="@+id/composio_search_count"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textColor="#52525B"
-            android:textSize="11sp"
-            android:visibility="gone" />
+    <LinearLayout android:id="@+id/composio_search_container" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/manus_search_bg" android:padding="12dp" android:layout_marginStart="20dp" android:layout_marginEnd="20dp" android:layout_marginBottom="10dp">
+        <ImageView android:layout_width="18dp" android:layout_height="18dp" android:src="@android:drawable/ic_menu_search" android:tint="#52525B" android:layout_marginEnd="10dp" />
+        <EditText android:id="@+id/composio_search_input" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:hint="Search connectors..." android:textColorHint="#52525B" android:textColor="#FFFFFF" android:textSize="14sp" android:background="@android:color/transparent" android:inputType="text" android:imeOptions="actionSearch" android:singleLine="true" />
     </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/composio_connect_banner"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="@drawable/card_bg_translucent"
-        android:padding="10dp"
-        android:gravity="center_vertical"
-        android:layout_marginStart="20dp"
-        android:layout_marginEnd="20dp"
-        android:layout_marginBottom="6dp"
-        android:visibility="gone">
-
-        <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:src="@drawable/ic_connectors"
-            android:tint="#3B82F6"
-            android:layout_marginEnd="8dp" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Tap Connect to link your account."
-            android:textColor="#71717A"
-            android:textSize="11sp" />
-    </LinearLayout>
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:fadeScrollbars="true"
-        android:scrollbars="vertical"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="16dp"
-        android:clipToPadding="false"
-        android:fillViewport="true">
-
-        <LinearLayout
-            android:id="@+id/services_grid"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
+    <LinearLayout android:id="@+id/composio_connect_banner" android:layout_width="match_parent" android:layout_height="wrap_content" android:visibility="gone" />
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fadeScrollbars="true" android:scrollbars="vertical" android:paddingStart="12dp" android:paddingEnd="12dp" android:paddingBottom="12dp" android:clipToPadding="false" android:fillViewport="true">
+        <LinearLayout android:id="@+id/services_grid" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" />
     </ScrollView>
-
 </LinearLayout>
