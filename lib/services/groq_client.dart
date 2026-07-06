@@ -73,8 +73,8 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
       body: jsonEncode({
         'model': model,
         'messages': messages,
-        'max_tokens': 2048,
-        'temperature': 0.7,
+        'max_tokens': 1024,
+        'temperature': 0.3,
       }),
     );
 
@@ -147,8 +147,8 @@ Answer the user's question based on the document content above. Be concise and h
       body: jsonEncode({
         'model': model,
         'messages': messages,
-        'max_tokens': 2048,
-        'temperature': 0.5,
+        'max_tokens': 1024,
+        'temperature': 0.3,
       }),
     );
 

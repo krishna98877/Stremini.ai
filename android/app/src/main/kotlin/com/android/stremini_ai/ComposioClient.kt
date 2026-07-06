@@ -843,7 +843,8 @@ class ComposioClient(
             }
 
             val (actionId, params) = actionParams
-            val result = executeAction(actionId, params, accountId, serviceId = service.id).getOrThrow()
+            val resolvedParams = resolveContactParams(actionId, params)
+            val result = executeAction(actionId, resolvedParams, accountId, serviceId = service.id).getOrThrow()
             // Cache this successful automation for instant repeat
             cacheAutomationResult(instruction, actionId, params)
             result
@@ -934,20 +935,30 @@ Example multi-service: [{"serviceId":"gmail","serviceName":"Gmail","actionId":"G
         service: ServiceDef,
         groqClient: GroqClient
     ): Pair<String, Map<String, Any>>? {
-        val prompt = """You are an automation intent parser for ${service.name}. Given a user request, return a JSON object with exactly two fields:
-- "actionId": The tool slug for the action. Available tools for ${service.name}: ${INTENT_ACTION_MAP.values.filter { aid ->
-    SERVICE_ACTION_PREFIX[service.id]?.let { prefix -> aid.startsWith(prefix) } ?: false
-}.joinToString(", ")}
-- "params": A flat key-value map of parameters. Extract real values from the user's message (phone numbers, email addresses, usernames, message text). Do NOT use empty strings.
+        val prompt = """You are an expert automation parser for ${service.name}. Parse the user request into a JSON action.
+
+Available actions: ${INTENT_ACTION_MAP.values.filter { aid -> SERVICE_ACTION_PREFIX[service.id]?.let { prefix -> aid.startsWith(prefix) } ?: false }.joinToString(", ")}
+
+EXTRACTION RULES (follow exactly):
+1. For WhatsApp "to": Use the RECIPIENT NAME as-is (e.g. "royal", "john"). The system resolves names to phone numbers automatically. Only use a number if the user explicitly provided one starting with +.
+2. For WhatsApp "message": Extract the exact message content. "send hi" = "hi". "saying hello there" = "hello there". "message what's up" = "what's up".
+3. For Gmail: "to"=email address, "subject"=subject line, "body"=email content. If user says "send email to john about Project X saying let's meet", subject="Project X", body="let's meet".
+4. For Instagram: "recipient_id"=the person's name/username. "text"=the message.
+5. For Telegram: "chat_id"=the person's name. "text"=the message.
+6. For Twitter: "text"=the full tweet content.
+7. For Discord: "content"=the message content.
+8. For GitHub: "title"=issue/repo title. "body"=description if provided.
+9. Handle abbreviations and nicknames: "royal" might be "Royal King" — pass "royal" as-is.
+10. NEVER leave params empty. If the user said "send hi to royal", params MUST be {"to":"royal","message":"hi"}.
 
 User request: ${protectForAi(instruction, source = "automation request")}
 
-Return ONLY valid JSON. Example: {"actionId":"GMAIL_SEND_EMAIL","params":{"to":"john@example.com","subject":"Hello","body":"Hi there"}}
-For WhatsApp: {"actionId":"WHATSAPP_SEND_MESSAGE","params":{"to":"1234567890","message":"Hello"}}
-For Instagram: {"actionId":"INSTAGRAM_SEND_TEXT_MESSAGE","params":{"username":"john","message":"Hello"}}
-For Telegram: {"actionId":"TELEGRAM_SEND_MESSAGE","params":{"chat_id":"123456","text":"Hello"}}
-For Twitter: {"actionId":"TWITTER_CREATE_A_TWEET","params":{"text":"Hello world"}}
-For WhatsApp: {"actionId":"WHATSAPP_SEND_MESSAGE","params":{"to":"1234567890","message":"Hello"}}"""
+Return ONLY valid JSON (no markdown, no explanation):
+{"actionId":"WHATSAPP_SEND_MESSAGE","params":{"to":"royal","message":"hi"}}
+{"actionId":"GMAIL_SEND_EMAIL","params":{"to":"john@example.com","subject":"Hello","body":"Hi there"}}
+{"actionId":"INSTAGRAM_SEND_TEXT_MESSAGE","params":{"recipient_id":"john","text":"Hello"}}
+{"actionId":"DISCORD_SEND_A_MESSAGE_TO_A_CHANNEL","params":{"content":"Hello everyone"}}
+{"actionId":"GITHUB_CREATE_AN_ISSUE","params":{"title":"Bug report","body":"Something is broken"}}"""
 
         val response = groqClient.sendMessage(message = prompt, history = emptyList())
             .getOrDefault("")
@@ -1015,7 +1026,17 @@ For WhatsApp: {"actionId":"WHATSAPP_SEND_MESSAGE","params":{"to":"1234567890","m
             "reddit" -> "REDDIT_CREATE_A_POST" to mapOf("title" to instruction, "text" to instruction)
             "googledrive" -> "GOOGLE_DRIVE_UPLOAD_FILE" to mapOf("content" to instruction)
             "googlesheets" -> "GOOGLE_SHEETS_READ_SHEET" to mapOf("spreadsheetId" to "", "range" to "A1:Z100")
-            "whatsapp" -> "WHATSAPP_SEND_MESSAGE" to mapOf("to" to "", "message" to instruction)
+            "whatsapp" -> {
+                // Extract recipient and message from natural language
+                // Patterns: "send hi to royal", "message royal hello", "send hello to john"
+                val toRegex = Regex("(?:to|send\s+.*?\s+to)\s+([\w\s]+?)(?:\s+saying|\s+message|\s+that|\s+about|\s*$)", RegexOption.IGNORE_CASE)
+                val msgRegex = Regex("(?:send|message|saying)\s+(.+?)(?:\s+to\s+|$)", RegexOption.IGNORE_CASE)
+                val toMatch = toRegex.find(instruction)
+                val msgMatch = msgRegex.find(instruction)
+                val recipient = toMatch?.groupValues?.get(1)?.trim() ?: ""
+                val message = msgMatch?.groupValues?.get(1)?.trim() ?: instruction
+                "WHATSAPP_SEND_MESSAGE" to mapOf("to" to recipient, "message" to message)
+            }
             "instagram" -> "INSTAGRAM_SEND_TEXT_MESSAGE" to mapOf("username" to "", "message" to instruction)
             "facebook" -> "FACEBOOK_CREATE_POST" to mapOf("message" to instruction)
             "youtube" -> "YOUTUBE_UPLOAD_A_VIDEO" to mapOf("title" to instruction, "description" to "")
@@ -1046,6 +1067,81 @@ For WhatsApp: {"actionId":"WHATSAPP_SEND_MESSAGE","params":{"to":"1234567890","m
             }
         }
         return bestMatch
+    }
+
+    // ── Contact Resolution System ──────────────────────────────────
+    // Maps contact names to phone numbers so users can say "send hi to royal"
+    // instead of "send hi to +1234567890". Learns from user corrections
+    // and persists across app restarts.
+
+    fun resolveContact(name: String): String? {
+        if (name.isBlank()) return null
+        val cleanName = name.trim().lowercase()
+        // 1. Exact match in saved contacts
+        val exact = prefs.getString("contact_$cleanName")
+        if (!exact.isNullOrBlank()) return exact
+        // 2. Fuzzy match — check if any saved contact contains this name
+        val allContacts = prefs.getString("all_contact_names") ?: ""
+        if (allContacts.isNotBlank()) {
+            for (savedName in allContacts.split(",")) {
+                val sn = savedName.trim().lowercase()
+                if (sn.isNotBlank() && (sn.contains(cleanName) || cleanName.contains(sn))) {
+                    val num = prefs.getString("contact_$sn")
+                    if (!num.isNullOrBlank()) return num
+                }
+            }
+        }
+        // 3. Check device contacts
+        return try {
+            val cursor = context.contentResolver.query(
+                android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                arrayOf(android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER,
+                        android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME),
+                android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?",
+                arrayOf("%" + cleanName + "%"),
+                null
+            )
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val number = it.getString(0)?.replace(Regex("[^+0-9]"), "")
+                    val contactName = it.getString(1)?.lowercase()?.trim()
+                    if (!number.isNullOrBlank() && !contactName.isNullOrBlank()) {
+                        saveContact(contactName, number)
+                    }
+                    number
+                } else null
+            }
+        } catch (e: Exception) { null }
+    }
+
+    fun saveContact(name: String, phoneNumber: String) {
+        val cleanName = name.trim().lowercase()
+        prefs.putString("contact_$cleanName", phoneNumber)
+        val allNames = prefs.getString("all_contact_names") ?: ""
+        if (!allNames.split(",").contains(cleanName)) {
+            val newAll = if (allNames.isBlank()) cleanName else allNames + "," + cleanName
+            prefs.putString("all_contact_names", newAll)
+        }
+    }
+
+    /**
+     * Resolve contact names to phone numbers in the params map.
+     */
+    private fun resolveContactParams(actionId: String, params: Map<String, Any>): Map<String, Any> {
+        val resolved = params.toMutableMap()
+        // WhatsApp: resolve "to" field from name to phone number
+        if (actionId.startsWith("WHATSAPP") && resolved.containsKey("to")) {
+            val toValue = resolved["to"]?.toString() ?: ""
+            val isPhoneNumber = toValue.matches(Regex("^\\+?[0-9]{6,15}$"))
+                if (!isPhoneNumber) {
+                val phoneNumber = resolveContact(toValue)
+                if (phoneNumber != null) {
+                    resolved["to"] = phoneNumber
+                    Log.i(TAG, "Resolved contact: " + toValue + " -> " + phoneNumber)
+                }
+            }
+        }
+        return resolved
     }
 
     // ── AI Learning: cache successful automations ───────────────────

@@ -117,10 +117,9 @@ class ChatCommandCoordinator(
      * or just a casual mention of a service name.
      */
     private suspend fun confirmAutomationIntent(message: String, serviceName: String): Boolean {
-        val prompt = """Does this message represent a clear intent to perform an action
-using $serviceName (send, post, read, create, search, upload, etc.)?
-Message: "$message"
-Reply with only YES or NO."""
+        val prompt = """Is this a request to perform an action with $serviceName? (send/post/create/read/search/upload)
+Message: ${protectForAi(message, source = "user message")}
+Reply YES or NO only."""
 
         return runCatching {
             backendClient.sendChatMessage(prompt, emptyList())
