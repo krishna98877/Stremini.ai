@@ -2,9 +2,9 @@
 <!-- Connected apps toggle panel — shows only connected apps with toggle switches -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/connected_apps_panel"
-    android:layout_width="260dp"
+    android:layout_width="240dp"
     android:layout_height="wrap_content"
-    android:maxHeight="320dp"
+    android:maxHeight="280dp"
     android:orientation="vertical"
     android:background="@drawable/panel_premium_bg"
     android:elevation="16dp"

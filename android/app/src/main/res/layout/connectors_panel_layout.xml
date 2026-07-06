@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/connectors_panel"
-    android:layout_width="300dp"
-    android:layout_height="460dp"
+    android:layout_width="280dp"
+    android:layout_height="380dp"
     android:orientation="vertical"
     android:background="@drawable/panel_premium_bg"
     android:elevation="20dp"
