@@ -1033,17 +1033,15 @@ Return ONLY valid JSON (no markdown, no explanation):
             "googledrive" -> "GOOGLE_DRIVE_UPLOAD_FILE" to mapOf("content" to instruction)
             "googlesheets" -> "GOOGLE_SHEETS_READ_SHEET" to mapOf("spreadsheetId" to "", "range" to "A1:Z100")
             "whatsapp" -> {
-                // Extract recipient and message from natural language
-                // Patterns: "send hi to royal", "message royal hello", "send hello to john"
                 val toRegex = Regex("""(?:to|send\s+.*?\s+to)\s+([\w\s]+?)(?:\s+saying|\s+message|\s+that|\s+about|\s*$)""", RegexOption.IGNORE_CASE)
                 val msgRegex = Regex("""(?:send|message|saying)\s+(.+?)(?:\s+to\s+|$)""", RegexOption.IGNORE_CASE)
-                val toMatch = toRegex.find(instruction)
-                val msgMatch = msgRegex.find(instruction)
-                val recipient = toMatch?.groupValues?.get(1)?.trim() ?: ""
-                val message = msgMatch?.groupValues?.get(1)?.trim() ?: instruction
-                "WHATSAPP_SEND_MESSAGE" to mapOf("to" to recipient, "message" to message)
+                val recipient = toRegex.find(instruction)?.groupValues?.get(1)?.trim() ?: ""
+                val message = msgRegex.find(instruction)?.groupValues?.get(1)?.trim() ?: instruction
+                // WhatsApp API requires: phone_number_id, to_number, text
+                // phone_number_id is obtained from the connected account
+                "WHATSAPP_SEND_MESSAGE" to mapOf("to_number" to recipient, "text" to message, "phone_number_id" to "")
             }
-            "instagram" -> "INSTAGRAM_SEND_TEXT_MESSAGE" to mapOf("username" to "", "message" to instruction)
+            "instagram" -> "INSTAGRAM_SEND_TEXT_MESSAGE" to mapOf("recipient_id" to "", "text" to instruction)
             "facebook" -> "FACEBOOK_CREATE_POST" to mapOf("message" to instruction)
             "youtube" -> "YOUTUBE_UPLOAD_A_VIDEO" to mapOf("title" to instruction, "description" to "")
             "telegram" -> "TELEGRAM_SEND_MESSAGE" to mapOf("chat_id" to "", "text" to instruction)
