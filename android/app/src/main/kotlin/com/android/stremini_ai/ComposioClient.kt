@@ -1029,8 +1029,8 @@ Return ONLY valid JSON (no markdown, no explanation):
             "whatsapp" -> {
                 // Extract recipient and message from natural language
                 // Patterns: "send hi to royal", "message royal hello", "send hello to john"
-                val toRegex = Regex("(?:to|send\s+.*?\s+to)\s+([\w\s]+?)(?:\s+saying|\s+message|\s+that|\s+about|\s*$)", RegexOption.IGNORE_CASE)
-                val msgRegex = Regex("(?:send|message|saying)\s+(.+?)(?:\s+to\s+|$)", RegexOption.IGNORE_CASE)
+                val toRegex = Regex("""(?:to|send\s+.*?\s+to)\s+([\w\s]+?)(?:\s+saying|\s+message|\s+that|\s+about|\s*$)""", RegexOption.IGNORE_CASE)
+                val msgRegex = Regex("""(?:send|message|saying)\s+(.+?)(?:\s+to\s+|$)""", RegexOption.IGNORE_CASE)
                 val toMatch = toRegex.find(instruction)
                 val msgMatch = msgRegex.find(instruction)
                 val recipient = toMatch?.groupValues?.get(1)?.trim() ?: ""
