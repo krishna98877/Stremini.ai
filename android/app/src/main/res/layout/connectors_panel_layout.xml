@@ -1,28 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Medium-size centered connectors panel. Black bg, glassmorphic white cards. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/connectors_panel"
     android:layout_width="300dp"
-    android:layout_height="wrap_content"
+    android:layout_height="460dp"
     android:orientation="vertical"
-    android:background="@drawable/panel_bg_dark"
-    android:elevation="16dp"
-    android:clipToOutline="true"
-    android:padding="16dp">
+    android:background="@drawable/panel_premium_bg"
+    android:elevation="20dp"
+    android:clipToOutline="true">
 
-    <!-- Header (compact) -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:background="@drawable/drag_handle_pill"
+        android:layout_marginTop="12dp"
+        android:layout_marginBottom="12dp" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:paddingBottom="12dp">
+        android:paddingStart="20dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="10dp">
 
-        <ImageView
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:src="@drawable/ic_connectors"
-            android:tint="#38BDF8"
+        <View
+            android:layout_width="8dp"
+            android:layout_height="8dp"
+            android:background="@drawable/circle_bg_blue"
             android:layout_marginEnd="10dp" />
 
         <TextView
@@ -30,7 +36,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Automations"
-            android:textColor="#ffffff"
+            android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold" />
 
@@ -38,38 +44,38 @@
             android:id="@+id/tv_composio_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="15 services"
-            android:textColor="#6B7280"
+            android:text="0 connected"
+            android:textColor="#71717A"
             android:textSize="11sp"
-            android:layout_marginEnd="12dp" />
+            android:layout_marginEnd="10dp" />
 
         <ImageView
             android:id="@+id/btn_close_connectors"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
-            android:tint="#9CA3AF"
-            android:padding="4dp"
-            android:contentDescription="Close"
-            android:scaleType="fitCenter" />
+            android:tint="#71717A"
+            android:padding="3dp"
+            android:background="@drawable/close_btn_bg" />
     </LinearLayout>
 
-    <!-- Search bar -->
     <LinearLayout
         android:id="@+id/composio_search_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="@drawable/search_bg_dark"
+        android:background="@drawable/search_premium_bg"
         android:padding="10dp"
-        android:layout_marginBottom="12dp">
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="10dp">
 
         <ImageView
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:src="@android:drawable/ic_menu_search"
-            android:tint="#6B7280"
+            android:tint="#52525B"
             android:layout_marginEnd="8dp" />
 
         <EditText
@@ -77,28 +83,25 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="Search services…"
-            android:textColorHint="#6B7280"
-            android:textColor="#ffffff"
+            android:hint="Search services..."
+            android:textColorHint="#52525B"
+            android:textColor="#FFFFFF"
             android:textSize="13sp"
             android:background="@android:color/transparent"
             android:inputType="text"
             android:imeOptions="actionSearch"
-            android:singleLine="true"
-            android:paddingStart="0dp"
-            android:paddingEnd="8dp" />
+            android:singleLine="true" />
 
         <TextView
             android:id="@+id/composio_search_count"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text=""
-            android:textColor="#6B7280"
+            android:textColor="#52525B"
             android:textSize="11sp"
             android:visibility="gone" />
     </LinearLayout>
 
-    <!-- Info banner (hidden by default, shown when Composio not configured) -->
     <LinearLayout
         android:id="@+id/composio_connect_banner"
         android:layout_width="match_parent"
@@ -107,14 +110,16 @@
         android:background="@drawable/card_bg_translucent"
         android:padding="10dp"
         android:gravity="center_vertical"
-        android:layout_marginBottom="8dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="6dp"
         android:visibility="gone">
 
         <ImageView
             android:layout_width="14dp"
             android:layout_height="14dp"
-            android:src="@drawable/ic_composio"
-            android:tint="#38BDF8"
+            android:src="@drawable/ic_connectors"
+            android:tint="#3B82F6"
             android:layout_marginEnd="8dp" />
 
         <TextView
@@ -122,18 +127,21 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="Tap Connect to link your account."
-            android:textColor="#9CA3AF"
+            android:textColor="#71717A"
             android:textSize="11sp" />
     </LinearLayout>
 
-    <!-- Scrollable services grid (3 columns) -->
     <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="380dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:fadeScrollbars="true"
         android:scrollbars="vertical"
-        android:paddingBottom="4dp"
-        android:clipToPadding="false">
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="16dp"
+        android:clipToPadding="false"
+        android:fillViewport="true">
 
         <LinearLayout
             android:id="@+id/services_grid"

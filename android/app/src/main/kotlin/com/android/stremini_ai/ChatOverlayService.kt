@@ -709,7 +709,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             // Tag for async status updates
             tag = svc.id
             // Glassmorphic translucent white card background
-            background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.card_bg_translucent)
+            background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.card_premium_bg)
 
             // Service logo (vector drawable)
             val icon = ImageView(this@ChatOverlayService).apply {
@@ -744,7 +744,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
                 gravity = Gravity.CENTER
                 id = View.generateViewId()
                 tag = "status_label"
-                background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.btn_connect_blue)
+                background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.btn_connect_premium)
                 val padH = (12 * density).toInt()
                 val padV = (4 * density).toInt()
                 setPadding(padH, padV, padH, padV)
@@ -789,7 +789,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             statusTv.setTextColor(CYAN)
             banner.visibility = View.GONE
         } else {
-            statusTv.text = "15 services"
+            statusTv.text = "0 connected"
             statusTv.setTextColor(Color.parseColor("#6B7280"))
             banner.visibility = View.VISIBLE
         }
@@ -816,11 +816,11 @@ class ChatOverlayService : Service(), View.OnTouchListener {
                         if (isConnected) {
                             statusLabel?.text = "Connected"
                             statusLabel?.setTextColor(Color.parseColor("#FFFFFF"))
-                            statusLabel?.background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.btn_connected_green)
+                            statusLabel?.background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.btn_connected_circle)
                         } else {
                             statusLabel?.text = "Connect"
                             statusLabel?.setTextColor(Color.parseColor("#FFFFFF"))
-                            statusLabel?.background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.btn_connect_blue)
+                            statusLabel?.background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.btn_connect_premium)
                         }
                     }
                 }
