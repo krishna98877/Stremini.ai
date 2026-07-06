@@ -11,8 +11,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -34,12 +32,10 @@ import java.net.URLEncoder
  * - The connected account is now available for automation.
  *
  * Endpoints (all use x-api-key header with the developer key):
- * - POST /api/v3.1/sessions                 → create session for user
- * - GET  /api/v3.1/sessions/{id}/toolkits   → list toolkits (shows connected status)
- * - POST /api/v3.1/sessions/{id}/authorize  → generate Connect Link (returns redirect_url)
- * - POST /api/v3.1/sessions/{id}/execute    → execute a tool on behalf of the user
- * - DELETE /api/v3.1/connectedAccounts/{id} → disconnect a specific account (legacy)
- * - DELETE /api/v3.1/sessions/{id}/toolkits/{slug} → session-based disconnect
+ * - POST /api/v3/connected_accounts/link   → initiate connection (returns redirect URL)
+ * - GET  /api/v3/connected_accounts         → list all connected accounts
+ * - DELETE /api/v3/connected_accounts/{id}  → disconnect a specific account
+ * - POST /api/v3.1/tools/execute/{slug}     → execute a tool on behalf of the user
  *
  * Get your developer key: https://composio.dev/settings → API Keys
  */
@@ -75,11 +71,11 @@ class ComposioClient(
     // work that leaked across Activity recreations.
     private val workScope: CoroutineScope =
         externalScope ?: CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val sessionMutex = Mutex()
 
     companion object {
         private const val TAG = "ComposioClient"
-        const val COMPOSIO_API_BASE = "https://backend.composio.dev/api/v3.1"
+        const val COMPOSIO_API_BASE = "https://backend.composio.dev/api/v3"
+        const val COMPOSIO_TOOLS_API_BASE = "https://backend.composio.dev/api/v3.1"
         const val COMPOSIO_CONNECT_BASE = "https://connect.composio.dev"
 
         /** Deep-link scheme for OAuth callback */
@@ -363,21 +359,14 @@ class ComposioClient(
         }
         workScope.launch(Dispatchers.IO) {
             try {
-                val sessionId = getOrCreateSession()
-                if (sessionId.isBlank()) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Failed to create Composio session", Toast.LENGTH_LONG).show()
-                    }
-                    return@launch
-                }
                 val apiKey = getDeveloperApiKey()
                 val body = JSONObject().apply {
-                    put("toolkit", serviceId)
-                    put("redirect_uri", REDIRECT_URI)
+                    put("serviceId", serviceId)
+                    put("redirectUri", REDIRECT_URI)
                 }.toString().toRequestBody("application/json".toMediaType())
 
                 val request = Request.Builder()
-                    .url("$COMPOSIO_API_BASE/sessions/$sessionId/authorize")
+                    .url("$COMPOSIO_API_BASE/connected_accounts/link")
                     .addHeader("x-api-key", apiKey)
                     .addHeader("Content-Type", "application/json")
                     .post(body)
@@ -386,14 +375,19 @@ class ComposioClient(
                 val client = secureHttpClient(connectTimeoutSeconds = 10L, readTimeoutSeconds = 15L, useCase = "composio")
                 client.newCall(request).execute().use { resp ->
                     val respBody = resp.body?.string() ?: "{}"
-                    val json = JSONObject(respBody)
-                    val authUrl = json.optString("redirect_url").ifBlank {
-                        json.optString("redirectUrl").ifBlank {
-                            json.optString("url").ifBlank {
-                                json.optJSONObject("data")?.optString("redirect_url") ?: ""
-                            }
+                    // Check if response is HTML (404 page) — means wrong endpoint
+                    if (respBody.startsWith("<!DOCTYPE") || respBody.startsWith("<html")) {
+                        Log.e(TAG, "Got HTML instead of JSON: HTTP ${resp.code}")
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Composio API error. Check your API key.", Toast.LENGTH_LONG).show()
                         }
+                        return@use
                     }
+                    val json = JSONObject(respBody)
+                    val authUrl = json.optString("redirectUrl")
+                        .ifBlank { json.optString("redirect_url") }
+                        .ifBlank { json.optString("url") }
+                        .ifBlank { json.optJSONObject("data")?.optString("redirectUrl") ?: "" }
                     if (authUrl.isNotBlank()) {
                         withContext(Dispatchers.Main) {
                             val intent = Intent(context, ComposioAuthActivity::class.java).apply {
@@ -521,14 +515,12 @@ class ComposioClient(
         val apiKey = getDeveloperApiKey()
 
         val body = JSONObject().apply {
-            put("tool_slug", actionId)
-            put("params", JSONObject(params))
-            if (connectedAccountId.isNotBlank()) put("connected_account_id", connectedAccountId)
+            put("arguments", JSONObject(params))
+            if (connectedAccountId.isNotBlank()) put("connectedAccountId", connectedAccountId)
         }.toString().toRequestBody("application/json".toMediaType())
 
-        val sid = getOrCreateSession()
         val request = Request.Builder()
-            .url("$COMPOSIO_API_BASE/sessions/$sid/execute")
+            .url("$COMPOSIO_TOOLS_API_BASE/tools/execute/$actionId")
             .addHeader("x-api-key", apiKey)
             .addHeader("Content-Type", "application/json")
             .post(body)
