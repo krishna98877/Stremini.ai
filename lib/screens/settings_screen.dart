@@ -259,7 +259,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _connectAutomations() async {
     _maybeHaptic(ref.read(appSettingsProvider).hapticFeedback);
-    const url = 'https://composio.dev/login';
+    const url = 'https://app.composio.dev';
     try {
       final bool success = await const MethodChannel('stremini.composio')
           .invokeMethod('openComposioConnect');

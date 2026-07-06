@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/connectors_panel"
-    android:layout_width="match_parent"
+    android:layout_width="340dp"
     android:layout_height="wrap_content"
-    android:maxHeight="420dp"
+    android:maxHeight="400dp"
     android:orientation="vertical"
     android:background="@drawable/manus_panel_bg"
     android:elevation="20dp"

@@ -51,25 +51,27 @@ class ChatCommandCoordinator(
             val detectedService = composioClient.detectService(sanitizedMessage)
 
             if (detectedService != null) {
-                // Bug 10 fix: confirm automation intent via LLM before routing
-                val isAutomationIntent = confirmAutomationIntent(sanitizedMessage, detectedService.name)
+                // Skip LLM confirmation for clear action verbs — go straight to execution
+                val hasActionVerb = listOf("send", "post", "create", "read", "search",
+                    "upload", "message", "email", "tweet", "comment", "share", "update",
+                    "list", "get", "delete", "reply").any {
+                    sanitizedMessage.lowercase().contains(it)
+                }
 
-                if (!isAutomationIntent) {
-                    // Keyword was coincidental — treat as normal chat
+                if (!hasActionVerb) {
+                    // No action verb — treat as normal chat
                     sendToBackend(sanitizedMessage, historyToSend)
                     return@launch
                 }
 
-                // Composio is always configured (embedded key).
-                // If the service is connected, route to Composio automation.
-                // If not connected, suggest connecting it.
+                // Check if service is connected
                 val isConnected = runCatching {
                     composioClient.isServiceConnected(detectedService.id)
                 }.getOrDefault(false)
 
                 if (isConnected) {
-                    // Service connected → route to Composio
-                    onBotMessage("Working on it via ${detectedService.name}...")
+                    // Service connected → route to automation
+                    onBotMessage("On it! Using ${detectedService.name}...")
                     composioClient.executeAutomation(
                         instruction = sanitizedMessage,
                         groqClient = backendClient.groq

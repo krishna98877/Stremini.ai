@@ -23,22 +23,18 @@ class ComposioService {
 /// All 13 supported automation services.
 /// Keywords are ordered longest-first per service to avoid cross-service collisions.
 const List<ComposioService> kComposioServices = [
-  ComposioService(id: 'github', name: 'GitHub', keywords: ['pull request', 'repository', 'commit', 'issue', 'branch', 'github', 'repo'], colorValue: 0xFF6e40c9, iconChar: 'G'),
+  ComposioService(id: 'github', name: 'GitHub', keywords: ['pull request', 'repository', 'commit', 'issue', 'branch', 'github', 'repo'], colorValue: 0xFF181717, iconChar: 'G'),
   ComposioService(id: 'gmail', name: 'Gmail', keywords: ['send email', 'email', 'mail', 'inbox', 'draft', 'gmail'], colorValue: 0xFFEA4335, iconChar: 'M'),
-  ComposioService(id: 'telegram', name: 'Telegram', keywords: ['telegram message', 'telegram chat', 'telegram channel', 'telegram', 'tg'], colorValue: 0xFF0088cc, iconChar: 'T'),
-  ComposioService(id: 'twitter', name: 'Twitter', keywords: ['post tweet', 'timeline', 'retweet', 'twitter', 'tweet', 'x.com'], colorValue: 0xFF1DA1F2, iconChar: 'X'),
-  ComposioService(id: 'instagram', name: 'Instagram', keywords: ['instagram story', 'instagram reel', 'instagram dm', 'instagram post', 'instagram', 'ig', 'story', 'reel'], colorValue: 0xFFE4405F, iconChar: 'I'),
-  ComposioService(id: 'facebook', name: 'Facebook', keywords: ['facebook post', 'facebook page', 'facebook group', 'facebook', 'fb'], colorValue: 0xFF1877F2, iconChar: 'F'),
   ComposioService(id: 'whatsapp', name: 'WhatsApp', keywords: ['whatsapp message', 'whats app', 'whatsapp', 'wa'], colorValue: 0xFF25D366, iconChar: 'W'),
-  ComposioService(id: 'googlechrome', name: 'Chrome', keywords: ['browser', 'open url', 'chrome', 'search', 'tab', 'browse'], colorValue: 0xFF4285F4, iconChar: 'C'),
-  ComposioService(id: 'googledrive', name: 'Google Drive', keywords: ['google drive', 'drive file', 'drive folder', 'share file', 'drive', 'upload'], colorValue: 0xFF0F9D58, iconChar: 'D'),
-  ComposioService(id: 'discord', name: 'Discord', keywords: ['discord server', 'discord channel', 'discord dm', 'discord', 'guild'], colorValue: 0xFF5865F2, iconChar: 'D'),
-  ComposioService(id: 'linkedin', name: 'LinkedIn', keywords: ['linkedin profile', 'linkedin connection', 'linkedin job', 'linkedin post', 'linkedin', 'connection', 'job'], colorValue: 0xFF0A66C2, iconChar: 'L'),
-  ComposioService(id: 'reddit', name: 'Reddit', keywords: ['subreddit', 'reddit post', 'reddit', 'upvote', 'thread', 'comment'], colorValue: 0xFFFF4500, iconChar: 'R'),
-  ComposioService(id: 'googlesheets', name: 'Google Sheets', keywords: ['google sheets', 'spreadsheet', 'sheet', 'column', 'row', 'cell', 'table'], colorValue: 0xFF0F9D58, iconChar: 'S'),
-  ComposioService(id: 'youtube', name: 'YouTube', keywords: ['youtube', 'youtube video', 'youtube channel', 'upload video', 'youtube comment', 'subscribe', 'playlist', 'youtube shorts'], colorValue: 0xFFFF0000, iconChar: 'Y'),
-  ComposioService(id: 'tiktok', name: 'TikTok', keywords: ['tiktok', 'tiktok video', 'tiktok post', 'tiktok dm', 'tiktok comment', 'tiktok account', 'duet'], colorValue: 0xFF000000, iconChar: 'Tk'),
-];
+  ComposioService(id: 'instagram', name: 'Instagram', keywords: ['instagram dm', 'instagram message', 'instagram', 'ig'], colorValue: 0xFFE4405F, iconChar: 'I'),
+  ComposioService(id: 'facebook', name: 'Facebook', keywords: ['facebook post', 'facebook page', 'facebook', 'fb'], colorValue: 0xFF1877F2, iconChar: 'F'),
+  ComposioService(id: 'googledrive', name: 'Google Drive', keywords: ['google drive', 'drive file', 'drive folder', 'drive', 'upload'], colorValue: 0xFF0F9D58, iconChar: 'D'),
+  ComposioService(id: 'discord', name: 'Discord', keywords: ['discord server', 'discord channel', 'discord dm', 'discord'], colorValue: 0xFF5865F2, iconChar: 'D'),
+  ComposioService(id: 'linkedin', name: 'LinkedIn', keywords: ['linkedin profile', 'linkedin post', 'linkedin', 'connection', 'job'], colorValue: 0xFF0A66C2, iconChar: 'L'),
+  ComposioService(id: 'reddit', name: 'Reddit', keywords: ['subreddit', 'reddit post', 'reddit', 'upvote'], colorValue: 0xFFFF4500, iconChar: 'R'),
+  ComposioService(id: 'googlesheets', name: 'Google Sheets', keywords: ['google sheets', 'spreadsheet', 'sheet', 'column', 'row', 'cell'], colorValue: 0xFF0F9D58, iconChar: 'S'),
+  ComposioService(id: 'youtube', name: 'YouTube', keywords: ['youtube', 'youtube video', 'youtube channel', 'upload video', 'subscribe'], colorValue: 0xFFFF0000, iconChar: 'Y'),
+]
 
 /// Manages Composio integration via REST API.
 ///
@@ -194,12 +190,9 @@ class ComposioServiceManager {
       }
 
       // Check if the service is connected
-      if (!isServiceConnected(service.id)) {
-        return '${service.name} is not connected yet. '
-            'Tap the plug icon in the chat bar, find ${service.name}, '
-            'and tap "Connect". You\'ll log in with your own ${service.name} '
-            'account — no API key needed.';
-      }
+      // Skip connection check — let Kotlin side handle it
+    // (Dart _serviceStatus may be stale)
+    
 
       // Route through native for execution
       if (Platform.isAndroid) {
