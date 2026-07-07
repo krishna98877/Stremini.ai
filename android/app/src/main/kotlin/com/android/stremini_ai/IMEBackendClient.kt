@@ -22,7 +22,17 @@ class IMEBackendClient(context: Context) {
 
     private val prefs = EncryptedPrefs.getEncrypted(context, "groq_prefs")
 
-    private fun getApiKey(): String? = prefs.getString("groq_api_key")
+    /**
+     * Get the Groq API key for the keyboard AI brain.
+     * Resolution: EncryptedPrefs → BuildConfig.GROQ_API_KEY fallback.
+     * Without this fallback, keyboard AI (autocomplete/tone/grammar/translate)
+     * would NEVER work because nothing populates "groq_api_key" in prefs.
+     */
+    private fun getApiKey(): String? {
+        val stored = prefs.getString("groq_api_key")
+        if (!stored.isNullOrBlank()) return stored
+        return BuildConfig.GROQ_API_KEY.takeIf { it.isNotBlank() }
+    }
 
     /**
      * Request a keyboard AI action (autocomplete, tone, or correct).

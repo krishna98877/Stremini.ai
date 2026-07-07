@@ -5,7 +5,7 @@
 If you discover a security vulnerability in Stremini AI, please report it
 **privately** — do NOT open a public GitHub issue.
 
-Email: **security@stremini.ai**
+Email: **streminiai@gmail.com**
 
 Include:
 - A clear description of the issue
