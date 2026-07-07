@@ -45,11 +45,16 @@ Rules:
     private val prefs = EncryptedPrefs.getEncrypted(context, "groq_prefs")
 
     /**
-     * Hardcoded default key — used as a fallback so the chat overlay works
-     * out of the box without requiring the user to configure anything.
-     * Rotate before public release.
+     * Groq API key — resolution order:
+     * 1. EncryptedPrefs (if user set one via Settings)
+     * 2. BuildConfig.GROQ_API_KEY (injected at build time from
+     *    `local.properties` -> `groq.api.key` or env var `GROQ_API_KEY`)
+     * 3. Empty string (not configured — user must set up keys)
+     *
+     * SECURITY: Never hardcode a real API key in source. Anyone reading the
+     * open-source repo would be able to steal and abuse it.
      */
-    private val defaultApiKey: String = "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"
+    private val defaultApiKey: String = BuildConfig.GROQ_API_KEY ?: ""
 
     /** Secure HTTP client with rate limiting and trusted-host enforcement */
     // Calls are made via secureHttpClient() per-request to respect useCase routing
@@ -59,7 +64,7 @@ Rules:
         prefs.putString("groq_api_key", key)
     }
 
-    /** Get the stored Groq API key, falling back to the hardcoded default if none set. */
+    /** Get the stored Groq API key, falling back to the BuildConfig-injected key if none set. */
     fun getApiKey(): String? {
         val stored = prefs.getString("groq_api_key")
         if (!stored.isNullOrBlank()) return stored

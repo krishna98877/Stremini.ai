@@ -43,12 +43,26 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        # Both API keys (Groq + Composio) have hardcoded defaults in the source
-        # so the APK ships working out of the box. CI secrets override them if set.
+        # API keys are injected via CI secrets (COMPOSIO_CONSUMER_KEY,
+        # GROQ_API_KEY). Without these the APK will build but won't have working
+        # AI chat or automation — see SECURITY.md for details.
         env:
           COMPOSIO_CONSUMER_KEY: ${{ secrets.COMPOSIO_CONSUMER_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: flutter build apk --release
+          AUTH_CONFIG_GITHUB: ${{ secrets.AUTH_CONFIG_GITHUB }}
+          AUTH_CONFIG_GMAIL: ${{ secrets.AUTH_CONFIG_GMAIL }}
+          AUTH_CONFIG_INSTAGRAM: ${{ secrets.AUTH_CONFIG_INSTAGRAM }}
+          AUTH_CONFIG_FACEBOOK: ${{ secrets.AUTH_CONFIG_FACEBOOK }}
+          AUTH_CONFIG_WHATSAPP: ${{ secrets.AUTH_CONFIG_WHATSAPP }}
+          AUTH_CONFIG_GOOGLEDRIVE: ${{ secrets.AUTH_CONFIG_GOOGLEDRIVE }}
+          AUTH_CONFIG_DISCORD: ${{ secrets.AUTH_CONFIG_DISCORD }}
+          AUTH_CONFIG_LINKEDIN: ${{ secrets.AUTH_CONFIG_LINKEDIN }}
+          AUTH_CONFIG_REDDIT: ${{ secrets.AUTH_CONFIG_REDDIT }}
+          AUTH_CONFIG_GOOGLESHEETS: ${{ secrets.AUTH_CONFIG_GOOGLESHEETS }}
+          AUTH_CONFIG_YOUTUBE: ${{ secrets.AUTH_CONFIG_YOUTUBE }}
+          WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
+          INSTAGRAM_DEFAULT_PSID: ${{ secrets.INSTAGRAM_DEFAULT_PSID }}
+        run: flutter build apk --release --dart-define=GROQ_API_KEY=$GROQ_API_KEY
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

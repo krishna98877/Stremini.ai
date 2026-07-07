@@ -37,10 +37,24 @@ android/local.properties
 *.keystore
 key.properties
 
-# Firebase config files (safety net — Firebase was removed but if re-added these
-# contain API keys and must never be committed).
+# ── Secrets ───────────────────────────────────────────────────────────────
+# Any file containing real API keys, tokens, or account IDs.
+# Use `android/local.properties.example` as the template instead.
+.env
+.env.*
+!.env.example
+secrets.properties
+*.secret
+*.secrets
+**/secrets/**
+**/credentials/**
+
+# Service account / OAuth client JSON (Google, Firebase, etc.)
 google-services.json
 GoogleService-Info.plist
+*-credentials.json
+service-account*.json
+client_secret*.json
 
 # Android build artifacts
 android/build/

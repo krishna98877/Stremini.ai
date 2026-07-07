@@ -1,11 +1,43 @@
-# Stremini AI — local.properties template
-# Copy this file to local.properties and fill in the values:
-#   cp local.properties.example local.properties
+# ──────────────────────────────────────────────────────────────────────────
+# Stremini AI — local secrets template
+# ──────────────────────────────────────────────────────────────────────────
+# Copy this file to `local.properties` (in the same `android/` directory) and
+# fill in YOUR OWN values. The `local.properties` file is gitignored and will
+# never be committed.
+#
+# Get your own keys:
+#   • Groq API key         → https://console.groq.com/keys
+#   • Composio consumer key → https://dashboard.composio.dev → API Keys
+#   • Composio auth_config_id values → https://dashboard.composio.dev →
+#       Auth Configs (one per service you want to enable)
+#
+# DO NOT commit real keys to the repo. See ../SECURITY.md for details.
+# ──────────────────────────────────────────────────────────────────────────
 
-# Flutter SDK path (set by Flutter CLI automatically)
+# Required — without these, AI chat and automation won't work
+groq.api.key=gsk_YOUR_GROQ_API_KEY_HERE
+composio.consumer.key=ak_YOUR_COMPOSIO_API_KEY_HERE
+
+# Composio auth_config_id per service (find these in your Composio dashboard)
+# Leave blank any service you don't want to enable.
+auth.config.github=
+auth.config.gmail=
+auth.config.instagram=
+auth.config.facebook=
+auth.config.whatsapp=
+auth.config.googledrive=
+auth.config.discord=
+auth.config.linkedin=
+auth.config.reddit=
+auth.config.googlesheets=
+auth.config.youtube=
+
+# Optional — connected account IDs (only needed if you've connected your own
+# WhatsApp Business number / Instagram page in the Composio dashboard and want
+# the automation system to use them as defaults)
+whatsapp.phone.number.id=
+instagram.default.psid=
+
+# Flutter SDK path (auto-set by `flutter` tool on first run, but you can set
+# it manually if needed)
 # flutter.sdk=/path/to/flutter/sdk
-
-# Composio consumer key (embedded at build time)
-# Replace with your real key from https://app.composio.dev/
-# DO NOT commit your real local.properties file — it is gitignored.
-composio.consumer.key=ak_YOUR_COMPOSIO_KEY_HERE

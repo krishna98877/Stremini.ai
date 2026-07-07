@@ -91,18 +91,23 @@ class ComposioClient(
         // Only 11 services with managed OAuth via Composio.
         // Telegram/Twitter/TikTok removed — they have no managed auth and
         // always fail at the OAuth step (user reported 14-app count, expecting 11).
+        //
+        // authConfigId is intentionally empty here — it's injected at runtime
+        // from BuildConfig (see authConfigFor(serviceId) below). The repo
+        // never contains real auth_config_ids because they're tied to the
+        // developer's Composio project.
         val ALL_SERVICES = listOf(
-            ServiceDef("github",       "GitHub",       listOf("github","repo","repository","commit","pull request","issue","branch"),           0xFF6e40c9, "G", R.drawable.logo_github,       "ac_YFSxski2H_Uj"),
-            ServiceDef("gmail",        "Gmail",        listOf("gmail","email","mail","send email","inbox","draft"),                               0xFFEA4335, "M", R.drawable.logo_gmail,        "ac__21liBysL4x9"),
-            ServiceDef("instagram",    "Instagram",    listOf("instagram","ig","instagram story","instagram reel","instagram dm","instagram post"), 0xFFE4405F, "I", R.drawable.logo_instagram,    "ac_V1hFeA4Iy2EF"),
-            ServiceDef("facebook",     "Facebook",     listOf("facebook","fb","facebook post","facebook page","facebook group"),                      0xFF1877F2, "F", R.drawable.logo_facebook,     "ac_u1qeC8YT6l90"),
-            ServiceDef("whatsapp",     "WhatsApp",     listOf("whatsapp","wa","whats app","whatsapp message"),                                       0xFF25D366, "W", R.drawable.logo_whatsapp,     "ac_412d-2RkonCA"),
-            ServiceDef("googledrive",  "Google Drive", listOf("drive","google drive","upload","drive file","drive folder","share file"),               0xFF0F9D58, "D", R.drawable.logo_googledrive,  "ac_0_7ITaqzgnMC"),
-            ServiceDef("discord",      "Discord",      listOf("discord","discord server","discord channel","discord dm","guild"),                      0xFF5865F2, "D", R.drawable.logo_discord,      "ac_Jh_gaZbL4nDx"),
-            ServiceDef("linkedin",     "LinkedIn",     listOf("linkedin","linkedin profile","linkedin connection","linkedin job","linkedin post"),      0xFF0A66C2, "L", R.drawable.logo_linkedin,     "ac_zVwn7nQv2PQZ"),
-            ServiceDef("reddit",       "Reddit",       listOf("reddit","subreddit","reddit post","upvote","comment","thread"),                        0xFFFF4500, "R", R.drawable.logo_reddit,       "ac_BNHdyMo8wNI9"),
-            ServiceDef("googlesheets", "Google Sheets",listOf("sheet","spreadsheet","google sheets","cell","row","column","table"),                  0xFF0F9D58, "S", R.drawable.logo_googlesheets, "ac_iR7c2eb7ecrA"),
-            ServiceDef("youtube",      "YouTube",      listOf("youtube","youtube video","youtube channel","upload video","youtube comment","subscribe","playlist","youtube shorts"), 0xFFFF0000, "Y", R.drawable.logo_youtube,      "ac_CF5aPWE_QIen"),
+            ServiceDef("github",       "GitHub",       listOf("github","repo","repository","commit","pull request","issue","branch"),           0xFF6e40c9, "G", R.drawable.logo_github),
+            ServiceDef("gmail",        "Gmail",        listOf("gmail","email","mail","send email","inbox","draft"),                               0xFFEA4335, "M", R.drawable.logo_gmail),
+            ServiceDef("instagram",    "Instagram",    listOf("instagram","ig","instagram story","instagram reel","instagram dm","instagram post"), 0xFFE4405F, "I", R.drawable.logo_instagram),
+            ServiceDef("facebook",     "Facebook",     listOf("facebook","fb","facebook post","facebook page","facebook group"),                      0xFF1877F2, "F", R.drawable.logo_facebook),
+            ServiceDef("whatsapp",     "WhatsApp",     listOf("whatsapp","wa","whats app","whatsapp message"),                                       0xFF25D366, "W", R.drawable.logo_whatsapp),
+            ServiceDef("googledrive",  "Google Drive", listOf("drive","google drive","upload","drive file","drive folder","share file"),               0xFF0F9D58, "D", R.drawable.logo_googledrive),
+            ServiceDef("discord",      "Discord",      listOf("discord","discord server","discord channel","discord dm","guild"),                      0xFF5865F2, "D", R.drawable.logo_discord),
+            ServiceDef("linkedin",     "LinkedIn",     listOf("linkedin","linkedin profile","linkedin connection","linkedin job","linkedin post"),      0xFF0A66C2, "L", R.drawable.logo_linkedin),
+            ServiceDef("reddit",       "Reddit",       listOf("reddit","subreddit","reddit post","upvote","comment","thread"),                        0xFFFF4500, "R", R.drawable.logo_reddit),
+            ServiceDef("googlesheets", "Google Sheets",listOf("sheet","spreadsheet","google sheets","cell","row","column","table"),                  0xFF0F9D58, "S", R.drawable.logo_googlesheets),
+            ServiceDef("youtube",      "YouTube",      listOf("youtube","youtube video","youtube channel","upload video","youtube comment","subscribe","playlist","youtube shorts"), 0xFFFF0000, "Y", R.drawable.logo_youtube),
         )
 
         /** Map of common user intents → Composio action IDs */
@@ -148,11 +153,34 @@ class ComposioClient(
          * (developer's connected WhatsApp Business number / Instagram page).
          * These are filled into params at execution time if the LLM did not
          * supply them. Without phone_number_id, WhatsApp silently accepts the
-         * request but never delivers the message — exactly the "says done but
-         * didn't send" symptom the user reported.
+         * request but never delivers the message.
+         *
+         * SECURITY: Values are injected at build time from local.properties /
+         * env vars — never hardcoded in source.
          */
-        const val WHATSAPP_PHONE_NUMBER_ID = "1109964648870017"
-        const val INSTAGRAM_DEFAULT_PSID = "17841463898967744"
+        val WHATSAPP_PHONE_NUMBER_ID: String = BuildConfig.WHATSAPP_PHONE_NUMBER_ID ?: ""
+        val INSTAGRAM_DEFAULT_PSID: String = BuildConfig.INSTAGRAM_DEFAULT_PSID ?: ""
+
+        /**
+         * Resolve the Composio auth_config_id for a given service at runtime.
+         * Returns empty string if not configured (the connect flow will fail
+         * gracefully and prompt the developer to set up the key in
+         * local.properties).
+         */
+        fun authConfigFor(serviceId: String): String = when (serviceId) {
+            "github"       -> BuildConfig.AUTH_CONFIG_GITHUB ?: ""
+            "gmail"        -> BuildConfig.AUTH_CONFIG_GMAIL ?: ""
+            "instagram"    -> BuildConfig.AUTH_CONFIG_INSTAGRAM ?: ""
+            "facebook"     -> BuildConfig.AUTH_CONFIG_FACEBOOK ?: ""
+            "whatsapp"     -> BuildConfig.AUTH_CONFIG_WHATSAPP ?: ""
+            "googledrive"  -> BuildConfig.AUTH_CONFIG_GOOGLEDRIVE ?: ""
+            "discord"      -> BuildConfig.AUTH_CONFIG_DISCORD ?: ""
+            "linkedin"     -> BuildConfig.AUTH_CONFIG_LINKEDIN ?: ""
+            "reddit"       -> BuildConfig.AUTH_CONFIG_REDDIT ?: ""
+            "googlesheets" -> BuildConfig.AUTH_CONFIG_GOOGLESHEETS ?: ""
+            "youtube"      -> BuildConfig.AUTH_CONFIG_YOUTUBE ?: ""
+            else -> ""
+        }
     }
 
     private val prefs = EncryptedPrefs.getEncrypted(context, "composio_prefs")
@@ -169,13 +197,14 @@ class ComposioClient(
      * Resolution order:
      * 1. EncryptedPrefs (if a custom key was set at runtime via setDeveloperApiKey)
      * 2. BuildConfig.COMPOSIO_CONSUMER_KEY (injected at build time from
-     *    local.properties / env var / hardcoded default in build.gradle.kts)
-     * 3. Empty string (not configured)
+     *    local.properties / env var — empty if not configured)
+     * 3. Empty string (not configured — app will guide user to set up keys)
      */
     fun getDeveloperApiKey(): String {
         val stored = prefs.getString("composio_dev_key")
         if (!stored.isNullOrBlank()) return stored
-        // Use BuildConfig-injected key (has a hardcoded default in build.gradle.kts)
+        // Use BuildConfig-injected key (no hardcoded default — must come from
+        // local.properties or env var, see SECURITY.md).
         val buildConfigKey = BuildConfig.COMPOSIO_CONSUMER_KEY
         if (buildConfigKey.isNotBlank()) {
             prefs.putString("composio_dev_key", buildConfigKey)
@@ -390,7 +419,7 @@ class ComposioClient(
             try {
                 val apiKey = getDeveloperApiKey()
                 val svc = ALL_SERVICES.find { it.id == serviceId }
-                val authConfigId = svc?.authConfigId ?: ""
+                val authConfigId = authConfigFor(serviceId)
                 if (authConfigId.isBlank() || svc?.needsCustomAuth == true) {
                     // For services without managed auth, create a custom auth config
                     // with the user's own credentials via the connect link flow.
@@ -973,11 +1002,11 @@ Example multi-service: [{"serviceId":"gmail","serviceName":"Gmail","actionId":"G
 Available actions: ${INTENT_ACTION_MAP.values.filter { aid -> SERVICE_ACTION_PREFIX[service.id]?.let { prefix -> aid.startsWith(prefix) } ?: false }.joinToString(", ")}
 
 EXACT PARAM NAMES — using wrong names silently fails the action:
-- WhatsApp: {"to_number": "<phone with country code, e.g. +917078461157>", "text": "<message>", "phone_number_id": "$WHATSAPP_PHONE_NUMBER_ID"}
+- WhatsApp: {"to_number": "<phone with country code, e.g. +15551234567>", "text": "<message>", "phone_number_id": "$WHATSAPP_PHONE_NUMBER_ID"}
   * If user said a name like "royal" or "john", put the NAME in to_number as-is — the system resolves it to a phone number later.
   * NEVER use "to", "message", "body" — those keys are silently ignored by Composio.
 - Gmail: {"to": "<email>", "subject": "<subject>", "body": "<email content>"}
-- Instagram: {"recipient_id": "<PSID number, e.g. 17841463898967744>", "text": "<message>"}
+- Instagram: {"recipient_id": "<PSID number, e.g. 17841400000000000>", "text": "<message>"}
   * If user said a name, put the name in recipient_id — the system fills the default PSID.
 - Discord: {"content": "<message>"}
 - GitHub: {"title": "<title>", "body": "<description>"}
@@ -1174,7 +1203,8 @@ Return ONLY valid JSON (no markdown, no explanation):
      * This is the critical safety net: even if the LLM returns {"to":"royal",
      * "message":"hi"} for WhatsApp (the OLD prompt did this), this function
      * rewrites it to {"to_number":"<resolved phone>", "text":"hi",
-     * "phone_number_id":"1109964648870017"} so Composio actually delivers.
+     * "phone_number_id":"<WHATSAPP_PHONE_NUMBER_ID from BuildConfig>"} so
+     * Composio actually delivers.
      *
      * Without this normalization, Composio accepts the request with
      * `successful: true` but silently drops it — exactly the "says done but

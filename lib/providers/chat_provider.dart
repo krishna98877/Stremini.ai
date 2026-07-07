@@ -44,12 +44,11 @@ final documentContextProvider =
 ///
 /// Resolution order:
 /// 1. --dart-define=GROQ_API_KEY=... (build-time injection, highest priority)
-/// 2. Hardcoded default below (so the APK ships working out of the box)
+/// 2. Empty string — the app will guide the user to enter a key in Settings.
 ///
-/// NOTE: The hardcoded default is intentional for the development/test build
-/// so the APK works immediately after install without any configuration.
-/// Rotate the key before any public release.
-const String _kGroqApiKeyDefault = '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';
+/// SECURITY: Never hardcode a real API key in source. Anyone reading this
+/// open-source repo would be able to steal and abuse it. Forks of this
+/// project must supply their own Groq key at build time.
 const String _kGroqApiKeyPlaceholder = r'$$GROQ_API_KEY$$';
 
 String _resolveGroqApiKey() {
@@ -58,8 +57,8 @@ String _resolveGroqApiKey() {
   if (injected != _kGroqApiKeyPlaceholder && injected.isNotEmpty) {
     return injected;
   }
-  // Fall back to hardcoded default so the APK works out of the box.
-  return _kGroqApiKeyDefault;
+  // No key configured — return empty so the UI can prompt the user.
+  return '';
 }
 
 final groqClientProvider = Provider<GroqClient>((ref) {
