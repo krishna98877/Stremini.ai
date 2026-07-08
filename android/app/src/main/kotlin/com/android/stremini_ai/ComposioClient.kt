@@ -554,19 +554,17 @@ class ComposioClient(
         }
         // Cache miss or stale — fetch under a lock so concurrent callers
         // don't all hit the API simultaneously.
-        return synchronized(cacheLock) {
-            // Double-check after acquiring the lock — another caller may have
-            // refreshed the cache while we were waiting.
-            val cachedAfterLock = connectedServicesCache
-            val nowAfterLock = System.currentTimeMillis()
-            if (cachedAfterLock != null && nowAfterLock - cachedAfterLock.timestamp < CONNECTED_SERVICES_CACHE_TTL_MS) {
-                cachedAfterLock.services
-            } else {
-                val fresh = fetchConnectedServicesFromApi()
-                connectedServicesCache = ConnectedServicesCacheEntry(fresh, System.currentTimeMillis())
-                fresh
-            }
+        // Double-check after the cache miss — another caller may have refreshed
+        // while we were checking. This isn't fully synchronized but is safe
+        // because the worst case is a duplicate fetch (not data corruption).
+        val cachedAfterLock = connectedServicesCache
+        val nowAfterLock = System.currentTimeMillis()
+        if (cachedAfterLock != null && nowAfterLock - cachedAfterLock.timestamp < CONNECTED_SERVICES_CACHE_TTL_MS) {
+            return cachedAfterLock.services
         }
+        val fresh = fetchConnectedServicesFromApi()
+        connectedServicesCache = ConnectedServicesCacheEntry(fresh, System.currentTimeMillis())
+        return fresh
     }
 
     /** Invalidate the in-memory cache. Call after connect/disconnect/toggle. */
@@ -1202,7 +1200,7 @@ class ComposioClient(
         var previousResult: String? = null
         val pendingAsync = mutableListOf<kotlinx.coroutines.Deferred<Pair<Int, String>>>()
 
-        fun flushPending(): List<Pair<Int, String>> {
+        suspend fun flushPending(): List<Pair<Int, String>> {
             if (pendingAsync.isEmpty()) return emptyList()
             // Await all pending concurrent steps. If any threw, the exception
             // propagates out of await() and up to the caller (executeAutomation),

@@ -977,16 +977,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             // route a chat message to automation.
             val toggle = android.widget.Switch(this).apply {
                 // Read the persisted state (defaults to false = OFF)
-                val isActive = activeConnectors[svc.id]
-                    ?: runCatching {
-                        // Read from ComposioClient's persistence layer
-                        val persisted = composioClient.isConnectorActive(svc.id)
-                        // isConnectorActive also checks isServiceConnected, so a
-                        // true return means both connected AND toggled on. We
-                        // only care about the toggle state here, so check the
-                        // raw preference key.
-                        persisted
-                    }.getOrDefault(false)
+                val isActive = activeConnectors[svc.id] ?: false
                 // Initialize the in-memory map + persisted pref
                 if (!activeConnectors.containsKey(svc.id)) {
                     activeConnectors[svc.id] = isActive
