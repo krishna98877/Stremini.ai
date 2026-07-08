@@ -111,11 +111,13 @@ class _ConnectorsPanelSheetState extends State<_ConnectorsPanelSheet>
               _buildHeader(),
               _buildSearch(),
               _buildStatusBar(),
+              // Compact list — shows ~4-5 rows, scrollable for the rest.
+              // Matches the blue-box size the user drew (roughly 40% of screen).
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.52),
+                constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.35),
                 child: _buildGrid(),
               ),
-              SizedBox(height: 16 + bottom),
+              SizedBox(height: 12 + bottom),
             ],
           ),
         ),

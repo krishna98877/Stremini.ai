@@ -86,11 +86,39 @@ class ChatCommandCoordinator(
                             onBotMessage(reply)
                         }
                         .onFailure { error ->
-                            // Other Composio errors — fallback to Groq
-                            val fallbackMessage = "The user tried to do something with ${detectedService.name} " +
-                                "but the automation failed: ${error.message}. " +
-                                "Help them with their request as best you can: $sanitizedMessage"
-                            sendToBackend(fallbackMessage, historyToSend)
+                            // ── Retry logic: don't show failure immediately ──
+                            // First attempt failed. Tell the user we're retrying,
+                            // wait a moment, then try once more. Only if the second
+                            // attempt also fails do we show the error.
+                            val errorMsg = error.message ?: "Unknown error"
+                            // Don't retry on permanent errors (auth, permission, not-connected)
+                            val isPermanentError = errorMsg.contains("not connected", ignoreCase = true) ||
+                                errorMsg.contains("expired", ignoreCase = true) ||
+                                errorMsg.contains("Permission denied", ignoreCase = true) ||
+                                errorMsg.contains("not configured", ignoreCase = true)
+                            if (isPermanentError) {
+                                // Don't retry — just tell the user what went wrong
+                                addToHistory("assistant", "Automation failed: $errorMsg")
+                                onBotMessage("Hmm, that didn't work. $errorMsg Want me to try a different approach?")
+                                return@launch
+                            }
+                            // Retryable error — tell the user we're trying again
+                            onBotMessage("Let me try that again...")
+                            kotlinx.coroutines.delay(1500)  // brief pause before retry
+                            composioClient.executeAutomation(
+                                instruction = sanitizedMessage,
+                                groqClient = backendClient.groq
+                            )
+                                .onSuccess { reply ->
+                                    addToHistory("assistant", reply)
+                                    onBotMessage(reply)
+                                }
+                                .onFailure { error2 ->
+                                    // Second attempt also failed — show a helpful message
+                                    val finalError = error2.message ?: "Unknown error"
+                                    addToHistory("assistant", "Automation failed after retry: $finalError")
+                                    onBotMessage("I tried twice but couldn't complete that. The error was: $finalError. You could try rephrasing, or check that ${detectedService.name} is properly connected in Settings → Manage Connectors.")
+                                }
                         }
                 } else {
                     // Either: not connected, OR connected but toggled OFF.
