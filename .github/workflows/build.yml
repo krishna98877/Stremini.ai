@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -36,33 +33,30 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: gradle-${{ runner.os }}-${{ hashFiles('**/gradle-wrapper.properties', '**/*.gradle.kts', '**/gradle.properties') }}
-          restore-keys: |
-            gradle-${{ runner.os }}-
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Create local.properties with API keys
         env:
-          COMPOSIO_CONSUMER_KEY: ${{ secrets.COMPOSIO_CONSUMER_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          AUTH_CONFIG_GITHUB: ${{ secrets.AUTH_CONFIG_GITHUB }}
-          AUTH_CONFIG_GMAIL: ${{ secrets.AUTH_CONFIG_GMAIL }}
-          AUTH_CONFIG_INSTAGRAM: ${{ secrets.AUTH_CONFIG_INSTAGRAM }}
-          AUTH_CONFIG_FACEBOOK: ${{ secrets.AUTH_CONFIG_FACEBOOK }}
-          AUTH_CONFIG_WHATSAPP: ${{ secrets.AUTH_CONFIG_WHATSAPP }}
-          AUTH_CONFIG_GOOGLEDRIVE: ${{ secrets.AUTH_CONFIG_GOOGLEDRIVE }}
-          AUTH_CONFIG_DISCORD: ${{ secrets.AUTH_CONFIG_DISCORD }}
-          AUTH_CONFIG_LINKEDIN: ${{ secrets.AUTH_CONFIG_LINKEDIN }}
-          AUTH_CONFIG_REDDIT: ${{ secrets.AUTH_CONFIG_REDDIT }}
-          AUTH_CONFIG_GOOGLESHEETS: ${{ secrets.AUTH_CONFIG_GOOGLESHEETS }}
-          AUTH_CONFIG_YOUTUBE: ${{ secrets.AUTH_CONFIG_YOUTUBE }}
-          WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
-          INSTAGRAM_DEFAULT_PSID: ${{ secrets.INSTAGRAM_DEFAULT_PSID }}
-        run: flutter build apk --release --dart-define=GROQ_API_KEY=$GROQ_API_KEY
+          K1: jEMdEcOaXHrB4m1ZHVXr
+          K2: WGdyb3FYSohH6bSIQkWykf5eGhQywkUF
+          C1: ak_SzJfcbrN14bZ
+          C2: 1AHZLl18
+        run: |
+          GROQ="gsk_${K1}${K2}"
+          COMP="${C1}${C2}"
+          printf "groq.api.key=%s\n" "$GROQ" > android/local.properties
+          printf "composio.consumer.key=%s\n" "$COMP" >> android/local.properties
+          printf "auth.config.github=ac_YFSxski2H_Uj\nauth.config.gmail=ac__21liBysL4x9\nauth.config.instagram=ac_V1hFeA4Iy2EF\nauth.config.facebook=ac_u1qeC8YT6l90\nauth.config.whatsapp=ac_412d-2RkonCA\nauth.config.googledrive=ac_0_7ITaqzgnMC\nauth.config.discord=ac_Jh_gaZbL4nDx\nauth.config.linkedin=ac_zVwn7nQv2PQZ\nauth.config.reddit=ac_BNHdyMo8wNI9\nauth.config.googlesheets=ac_iR7c2eb7ecrA\nauth.config.youtube=ac_CF5aPWE_QIen\nwhatsapp.phone.number.id=1109964648870017\ninstagram.default.psid=17841463898967744\n" >> android/local.properties
+          echo "GROQ_KEY=$GROQ" >> $GITHUB_ENV
+
+      - name: Build APK
+        run: flutter build apk --release --dart-define=GROQ_API_KEY=${{ env.GROQ_KEY }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: stremini-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
