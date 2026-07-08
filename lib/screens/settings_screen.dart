@@ -6,6 +6,7 @@ import '../core/localization/app_strings.dart';
 import '../core/theme/app_colors.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/chat_provider.dart';
+import '../services/composio_service.dart';
 import '../services/keyboard_service.dart';
 import '../features/connectors/connectors_panel.dart';
 
