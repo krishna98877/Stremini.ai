@@ -978,40 +978,27 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         row.addView(textContainer)
 
         if (isConnected) {
-            // Disconnect button — WHITE bg, BLACK text (matches Flutter design)
-            val disconnectBtn = TextView(this).apply {
-                text = "Disconnect"
-                setTextColor(Color.BLACK)
-                textSize = 12f
-                typeface = Typeface.DEFAULT_BOLD
-                gravity = Gravity.CENTER
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                    cornerRadius = (20 * density)
-                    setColor(Color.WHITE)
+            // Toggle switch — lets user enable/disable automation per service
+            val toggle = android.widget.Switch(this).apply {
+                val isActive = activeConnectors[svc.id] ?: false
+                if (!activeConnectors.containsKey(svc.id)) {
+                    activeConnectors[svc.id] = isActive
                 }
-                val padH = (16 * density).toInt()
-                val padV = (7 * density).toInt()
-                setPadding(padH, padV, padH, padV)
-                isClickable = true
-                isFocusable = true
-                setOnClickListener {
-                    // Disconnect — calls ComposioClient
-                    text = "..."
-                    setTextColor(Color.GRAY)
-                    serviceScope.launch {
-                        composioClient.disconnectService(svc.id)
-                        composioClient.invalidateConnectedServicesCache()
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            hideConnectedAppsPanel()
-                            showConnectedAppsPanel()  // refresh
-                        }
-                    }
+                isChecked = isActive
+                trackDrawable = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.toggle_bg)
+                thumbDrawable = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.toggle_thumb)
+                setOnCheckedChangeListener { _, checked ->
+                    activeConnectors[svc.id] = checked
+                    composioClient.setConnectorActive(svc.id, checked)
+                    Toast.makeText(this@ChatOverlayService,
+                        if (checked) "${svc.name} enabled" else "${svc.name} disabled",
+                        Toast.LENGTH_SHORT).show()
+                    updateChatConnectorsToggleIcon()
                 }
             }
-            row.addView(disconnectBtn)
+            row.addView(toggle)
         } else {
-            // Connect button — WHITE bg, BLACK text (matches Flutter design)
+            // Connect button — WHITE bg, BLACK text
             val connectBtn = TextView(this).apply {
                 text = "Connect"
                 setTextColor(Color.BLACK)

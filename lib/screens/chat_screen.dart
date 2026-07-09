@@ -543,7 +543,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           _botAvatar(),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               color: _botBubble,
               borderRadius: const BorderRadius.only(
@@ -554,28 +554,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
               border: Border.all(color: const Color(0x14FFFFFF), width: 0.5),
             ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(_accent),
-                  ),
-                ),
-                SizedBox(width: 10),
-                Text(
-                  'Thinking…',
-                  style: TextStyle(
-                    color: _textPri,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+            child: const _TypingDots(),
           ),
         ]),
       );
@@ -814,6 +793,62 @@ class _AttachSheet extends StatelessWidget {
           const Icon(Icons.chevron_right, color: _textDim, size: 16),
         ]),
       ),
+    );
+  }
+}
+// ── Animated typing dots ─────────────────────────────────────────────────────
+class _TypingDots extends StatefulWidget {
+  const _TypingDots();
+  @override
+  State<_TypingDots> createState() => _TypingDotsState();
+}
+
+class _TypingDotsState extends State<_TypingDots> with TickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (i) {
+            final delay = i * 0.2;
+            final t = (_ctrl.value - delay).abs();
+            final scale = 0.5 + (0.5 * (1 - (2 * t - 1).abs()));
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 2),
+              child: Transform.scale(
+                scale: scale,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: Color(0xFF23A6E2).withOpacity(0.4 + 0.6 * scale),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

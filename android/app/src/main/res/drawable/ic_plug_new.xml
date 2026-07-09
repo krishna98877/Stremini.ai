@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <!-- Electrical plug icon — two prongs at top, body below, cord curving out -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M16,9V4h-2v5h-4V4H8v5c0,1.86 1.28,3.41 3,3.86V21h2v-8.14c1.72,-0.45 3,-2 3,-3.86z" />
+</vector>

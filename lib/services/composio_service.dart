@@ -183,13 +183,19 @@ class ComposioServiceManager {
   /// Detect which service a user message is likely about.
   /// Uses longest-keyword-match to avoid collisions.
   ComposioService? detectService(String message) {
-    final lower = message.toLowerCase();
+    final lower = ' ${message.toLowerCase()} ';
     ComposioService? bestMatch;
     int bestKeywordLength = 0;
 
     for (final svc in kComposioServices) {
       for (final kw in svc.keywords) {
-        if (lower.contains(kw) && kw.length > bestKeywordLength) {
+        // Short keywords (≤3 chars like "wa", "ig", "fb") require word
+        // boundary to avoid "wassup" matching "wa". Long keywords use
+        // substring match since they're specific enough.
+        final matched = kw.length <= 3
+            ? RegExp('\\b${RegExp.escape(kw)}\\b').hasMatch(lower)
+            : lower.contains(kw);
+        if (matched && kw.length > bestKeywordLength) {
           bestMatch = svc;
           bestKeywordLength = kw.length;
         }

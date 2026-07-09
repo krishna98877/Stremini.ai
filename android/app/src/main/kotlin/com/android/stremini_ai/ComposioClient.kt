@@ -1503,16 +1503,28 @@ Return ONLY valid JSON (no markdown, no explanation):
 
     /**
      * Detect which service a user message is likely about.
-     * Uses longest-keyword-match to avoid collisions.
+     * Uses longest-keyword-match with WORD BOUNDARY checking to avoid false
+     * positives like "wassup" matching "wa" (WhatsApp keyword).
+     *
+     * Short keywords (≤3 chars like "wa", "ig", "fb") require exact word
+     * boundary matching. Longer keywords (≥4 chars) use substring match
+     * since they're specific enough to not collide with casual speech.
      */
     fun detectService(message: String): ServiceDef? {
-        val lower = message.lowercase()
+        val lower = " ${message.lowercase()} "  // pad with spaces for word-boundary
         var bestMatch: ServiceDef? = null
         var bestKeywordLength = 0
 
         for (svc in ALL_SERVICES) {
             for (kw in svc.keywords) {
-                if (lower.contains(kw) && kw.length > bestKeywordLength) {
+                val matched = if (kw.length <= 3) {
+                    // Short keywords: require word boundary (surrounded by spaces/punctuation)
+                    Regex("\\b${Regex.escape(kw)}\\b").containsMatchIn(lower)
+                } else {
+                    // Long keywords: substring match is safe
+                    lower.contains(kw)
+                }
+                if (matched && kw.length > bestKeywordLength) {
                     bestMatch = svc
                     bestKeywordLength = kw.length
                 }

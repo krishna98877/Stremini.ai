@@ -138,7 +138,7 @@
                 android:id="@+id/connectors_toggle_icon"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@drawable/ic_connectors"
+                android:src="@drawable/ic_plug_new"
                 android:tint="#FFFFFF"
                 android:layout_gravity="center"
                 android:scaleType="fitCenter" />
