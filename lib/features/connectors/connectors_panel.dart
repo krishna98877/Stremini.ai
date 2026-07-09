@@ -409,7 +409,7 @@ class _ServiceTileState extends State<_ServiceTile>
                 ),
               ),
               const SizedBox(width: 14),
-              // Name + status text
+              // Name + status + requirements text
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -434,6 +434,26 @@ class _ServiceTileState extends State<_ServiceTile>
                         ),
                       ),
                     ),
+                    // Show requirements for disconnected services
+                    if (!widget.isConnected && widget.service.requirements.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, size: 11, color: Color(0xFF555555)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              widget.service.requirements,
+                              style: const TextStyle(
+                                color: Color(0xFF555555),
+                                fontSize: 11,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
