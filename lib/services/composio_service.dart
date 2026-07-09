@@ -11,6 +11,7 @@ class ComposioService {
   final int colorValue;
   final String iconChar;
   final String requirements;
+  final String rateLimit;
 
   const ComposioService({
     required this.id,
@@ -19,6 +20,7 @@ class ComposioService {
     required this.colorValue,
     required this.iconChar,
     this.requirements = '',
+    this.rateLimit = '',
   });
 }
 
@@ -27,17 +29,17 @@ class ComposioService {
 /// and TikTok were removed because they have no managed auth flow.
 /// Keywords are ordered longest-first per service to avoid cross-service collisions.
 const List<ComposioService> kComposioServices = [
-  ComposioService(id: 'github', name: 'GitHub', keywords: ['pull request', 'repository', 'commit', 'issue', 'branch', 'github', 'repo'], colorValue: 0xFF181717, iconChar: 'G', requirements: 'Repository access permissions needed'),
-  ComposioService(id: 'gmail', name: 'Gmail', keywords: ['send email', 'email', 'mail', 'inbox', 'draft', 'gmail'], colorValue: 0xFFEA4335, iconChar: 'M', requirements: 'OAuth scopes for email sending'),
-  ComposioService(id: 'whatsapp', name: 'WhatsApp', keywords: ['whatsapp message', 'whats app', 'whatsapp', 'wa'], colorValue: 0xFF25D366, iconChar: 'W', requirements: 'Business API access required'),
-  ComposioService(id: 'instagram', name: 'Instagram', keywords: ['instagram dm', 'instagram message', 'instagram', 'ig'], colorValue: 0xFFE4405F, iconChar: 'I', requirements: 'Business or Creator account required (not Personal)'),
-  ComposioService(id: 'facebook', name: 'Facebook', keywords: ['facebook post', 'facebook page', 'facebook', 'fb'], colorValue: 0xFF1877F2, iconChar: 'F', requirements: 'Page management permissions needed'),
-  ComposioService(id: 'googledrive', name: 'Google Drive', keywords: ['google drive', 'drive file', 'drive folder', 'drive', 'upload'], colorValue: 0xFF0F9D58, iconChar: 'D', requirements: 'File sharing permissions'),
-  ComposioService(id: 'discord', name: 'Discord', keywords: ['discord server', 'discord channel', 'discord dm', 'discord'], colorValue: 0xFF5865F2, iconChar: 'D', requirements: 'Bot permissions in target servers'),
-  ComposioService(id: 'linkedin', name: 'LinkedIn', keywords: ['linkedin profile', 'linkedin post', 'linkedin', 'connection', 'job'], colorValue: 0xFF0A66C2, iconChar: 'L', requirements: 'Professional account with posting permissions'),
-  ComposioService(id: 'reddit', name: 'Reddit', keywords: ['subreddit', 'reddit post', 'reddit', 'upvote'], colorValue: 0xFFFF4500, iconChar: 'R', requirements: 'Valid account with posting karma'),
-  ComposioService(id: 'googlesheets', name: 'Google Sheets', keywords: ['google sheets', 'spreadsheet', 'sheet', 'column', 'row', 'cell'], colorValue: 0xFF0F9D58, iconChar: 'S', requirements: 'Drive API permissions'),
-  ComposioService(id: 'youtube', name: 'YouTube', keywords: ['youtube', 'youtube video', 'youtube channel', 'upload video', 'subscribe'], colorValue: 0xFFFF0000, iconChar: 'Y', requirements: 'Channel verification needed for custom thumbnails'),
+  ComposioService(id: 'github', name: 'GitHub', keywords: ['pull request', 'repository', 'commit', 'issue', 'branch', 'github', 'repo'], colorValue: 0xFF181717, iconChar: 'G', requirements: 'Repository access permissions needed', rateLimit: '5000 API requests/hour per account'),
+  ComposioService(id: 'gmail', name: 'Gmail', keywords: ['send email', 'email', 'mail', 'inbox', 'draft', 'gmail'], colorValue: 0xFFEA4335, iconChar: 'M', requirements: 'OAuth scopes for email sending', rateLimit: '500 emails/day per account'),
+  ComposioService(id: 'whatsapp', name: 'WhatsApp', keywords: ['whatsapp message', 'whats app', 'whatsapp', 'wa'], colorValue: 0xFF25D366, iconChar: 'W', requirements: 'Business API access required', rateLimit: '24-hour messaging window per user'),
+  ComposioService(id: 'instagram', name: 'Instagram', keywords: ['instagram dm', 'instagram message', 'instagram', 'ig'], colorValue: 0xFFE4405F, iconChar: 'I', requirements: 'Business or Creator account required (not Personal)', rateLimit: '25 posts per 24 hours'),
+  ComposioService(id: 'facebook', name: 'Facebook', keywords: ['facebook post', 'facebook page', 'facebook', 'fb'], colorValue: 0xFF1877F2, iconChar: 'F', requirements: 'Page management permissions needed', rateLimit: 'Page posting restrictions apply'),
+  ComposioService(id: 'googledrive', name: 'Google Drive', keywords: ['google drive', 'drive file', 'drive folder', 'drive', 'upload'], colorValue: 0xFF0F9D58, iconChar: 'D', requirements: 'File sharing permissions', rateLimit: '1000 requests/100 seconds'),
+  ComposioService(id: 'discord', name: 'Discord', keywords: ['discord server', 'discord channel', 'discord dm', 'discord'], colorValue: 0xFF5865F2, iconChar: 'D', requirements: 'Bot permissions in target servers', rateLimit: '5 messages/second per channel'),
+  ComposioService(id: 'linkedin', name: 'LinkedIn', keywords: ['linkedin profile', 'linkedin post', 'linkedin', 'connection', 'job'], colorValue: 0xFF0A66C2, iconChar: 'L', requirements: 'Professional account with posting permissions', rateLimit: '150 posts/day per account'),
+  ComposioService(id: 'reddit', name: 'Reddit', keywords: ['subreddit', 'reddit post', 'reddit', 'upvote'], colorValue: 0xFFFF4500, iconChar: 'R', requirements: 'Valid account with posting karma', rateLimit: 'Posting frequency limits apply'),
+  ComposioService(id: 'googlesheets', name: 'Google Sheets', keywords: ['google sheets', 'spreadsheet', 'sheet', 'column', 'row', 'cell'], colorValue: 0xFF0F9D58, iconChar: 'S', requirements: 'Drive API permissions', rateLimit: '60 reads/writes per minute'),
+  ComposioService(id: 'youtube', name: 'YouTube', keywords: ['youtube', 'youtube video', 'youtube channel', 'upload video', 'subscribe'], colorValue: 0xFFFF0000, iconChar: 'Y', requirements: 'Channel verification needed for custom thumbnails', rateLimit: 'Video upload quotas apply'),
 ];
 
 /// Manages Composio integration via REST API.

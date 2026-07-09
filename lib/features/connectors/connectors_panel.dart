@@ -454,6 +454,26 @@ class _ServiceTileState extends State<_ServiceTile>
                         ],
                       ),
                     ],
+                    // Show rate limits for all services (connected or not)
+                    if (widget.service.rateLimit.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.speed_rounded, size: 11, color: Color(0xFF444444)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              widget.service.rateLimit,
+                              style: const TextStyle(
+                                color: Color(0xFF444444),
+                                fontSize: 11,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),

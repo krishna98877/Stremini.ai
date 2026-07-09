@@ -183,17 +183,14 @@ class ComposioClient(
         )
 
         /**
-         * Verified defaults for services that need fixed identifiers
-         * (developer's connected WhatsApp Business number / Instagram page).
-         * These are filled into params at execution time if the LLM did not
-         * supply them. Without phone_number_id, WhatsApp silently accepts the
-         * request but never delivers the message.
-         *
-         * SECURITY: Values are injected at build time from local.properties /
-         * env vars — never hardcoded in source.
+         * WhatsApp phone_number_id and Instagram PSID — NO LONGER hardcoded.
+         * Each user must provide their own via the connectors panel.
+         * Stored in EncryptedPrefs, not BuildConfig.
          */
-        val WHATSAPP_PHONE_NUMBER_ID: String = BuildConfig.WHATSAPP_PHONE_NUMBER_ID ?: ""
-        val INSTAGRAM_DEFAULT_PSID: String = BuildConfig.INSTAGRAM_DEFAULT_PSID ?: ""
+        fun getWhatsappPhoneNumberId(): String = prefs.getString("whatsapp_phone_number_id") ?: ""
+        fun setWhatsappPhoneNumberId(id: String) { prefs.putString("whatsapp_phone_number_id", id) }
+        fun getInstagramPsid(): String = prefs.getString("instagram_psid") ?: ""
+        fun setInstagramPsid(id: String) { prefs.putString("instagram_psid", id) }
 
         /**
          * Resolve the Composio auth_config_id for a given service at runtime.
@@ -1487,7 +1484,7 @@ Rules:
 - For distribution patterns (same content to multiple platforms), do NOT add _dependsOnPreviousStep — they run concurrently.
 - For chaining patterns (output feeds next step), DO add _dependsOnPreviousStep: true.
 - Use EXACT Composio param names — wrong names silently fail:
-  * WhatsApp: {"to_number":"<phone or name>","text":"<msg>","phone_number_id":"$WHATSAPP_PHONE_NUMBER_ID"}
+  * WhatsApp: {"to_number":"<phone or name>","text":"<msg>","phone_number_id":"<your-whatsapp-phone-number-id>"}
   * Gmail: {"to":"<email>","subject":"<subj>","body":"<content>"}
   * Instagram: {"recipient_id":"<PSID or name>","text":"<msg>"}
   * Discord: {"content":"<msg>"}
@@ -1564,7 +1561,7 @@ Example cross-app chaining: [{"serviceId":"gmail","serviceName":"Gmail","actionI
 Available actions: ${INTENT_ACTION_MAP.values.filter { aid -> SERVICE_ACTION_PREFIX[service.id]?.let { prefix -> aid.startsWith(prefix) } ?: false }.joinToString(", ")}
 
 EXACT PARAM NAMES — using wrong names silently fails the action:
-- WhatsApp: {"to_number": "<phone with country code, e.g. +15551234567>", "text": "<message>", "phone_number_id": "$WHATSAPP_PHONE_NUMBER_ID"}
+- WhatsApp: {"to_number": "<phone with country code, e.g. +15551234567>", "text": "<message>", "phone_number_id": "<your-whatsapp-phone-number-id>"}
   * If user said a name like "royal" or "john", put the NAME in to_number as-is — the system resolves it to a phone number later.
   * NEVER use "to", "message", "body" — those keys are silently ignored by Composio.
 - Gmail: {"to": "<email>", "subject": "<subject>", "body": "<email content>"}
@@ -1582,13 +1579,13 @@ EXACT PARAM NAMES — using wrong names silently fails the action:
 RULES:
 1. ALWAYS use the EXACT param names above. Do NOT invent variations.
 2. Extract message content faithfully — "send hi" → text="hi", "saying hello there" → text="hello there".
-3. For WhatsApp, ALWAYS include "phone_number_id": "$WHATSAPP_PHONE_NUMBER_ID".
+3. For WhatsApp, ALWAYS include "phone_number_id": "<your-whatsapp-phone-number-id>".
 4. NEVER leave required params empty.
 
 User request: ${protectForAi(instruction, source = "automation request")}
 
 Return ONLY valid JSON (no markdown, no explanation):
-{"actionId":"WHATSAPP_SEND_MESSAGE","params":{"to_number":"royal","text":"hi","phone_number_id":"$WHATSAPP_PHONE_NUMBER_ID"}}
+{"actionId":"WHATSAPP_SEND_MESSAGE","params":{"to_number":"royal","text":"hi","phone_number_id":"<your-whatsapp-phone-number-id>"}}
 {"actionId":"GMAIL_SEND_EMAIL","params":{"to":"john@example.com","subject":"Hello","body":"Hi there"}}
 {"actionId":"INSTAGRAM_SEND_TEXT_MESSAGE","params":{"recipient_id":"royal","text":"Hello"}}
 {"actionId":"DISCORDBOT_CREATE_MESSAGE","params":{"content":"Hello everyone"}}
@@ -1676,10 +1673,10 @@ Return ONLY valid JSON (no markdown, no explanation):
                 "WHATSAPP_SEND_MESSAGE" to mapOf(
                     "to_number" to recipient,
                     "text" to message,
-                    "phone_number_id" to WHATSAPP_PHONE_NUMBER_ID
+                    "phone_number_id" to getWhatsappPhoneNumberId()
                 )
             }
-            "instagram" -> "INSTAGRAM_SEND_TEXT_MESSAGE" to mapOf("recipient_id" to INSTAGRAM_DEFAULT_PSID, "text" to instruction)
+            "instagram" -> "INSTAGRAM_SEND_TEXT_MESSAGE" to mapOf("recipient_id" to getInstagramPsid(), "text" to instruction)
             "facebook" -> "FACEBOOK_CREATE_POST" to mapOf("message" to instruction)
             "youtube" -> "YOUTUBE_UPLOAD_VIDEO" to mapOf("title" to instruction, "description" to "")
             else -> null
@@ -1781,7 +1778,7 @@ Return ONLY valid JSON (no markdown, no explanation):
      * This is the critical safety net: even if the LLM returns {"to":"royal",
      * "message":"hi"} for WhatsApp (the OLD prompt did this), this function
      * rewrites it to {"to_number":"<resolved phone>", "text":"hi",
-     * "phone_number_id":"<WHATSAPP_PHONE_NUMBER_ID from BuildConfig>"} so
+     * "phone_number_id":"<user-provided WhatsApp phone_number_id>"} so
      * Composio actually delivers.
      *
      * Without this normalization, Composio accepts the request with
@@ -1822,7 +1819,7 @@ Return ONLY valid JSON (no markdown, no explanation):
                 // 5) ALWAYS inject phone_number_id — without it, Composio
                 //    silently accepts but never delivers the message.
                 if (p["phone_number_id"]?.toString().isNullOrBlank()) {
-                    p["phone_number_id"] = WHATSAPP_PHONE_NUMBER_ID
+                    p["phone_number_id"] = getWhatsappPhoneNumberId()
                 }
                 Log.i(TAG, "WhatsApp params normalized → to_number=${safePhoneTail(finalNumber)} text=<len=${rawText.length}> phone_number_id=<len=${p["phone_number_id"]?.toString()?.length ?: 0}>")
             }
@@ -1833,8 +1830,8 @@ Return ONLY valid JSON (no markdown, no explanation):
                 val rawRid = p["recipient_id"]?.toString() ?: ""
                 val isNumericPsid = rawRid.matches(Regex("^[0-9]{10,20}$"))
                 if (!isNumericPsid) {
-                    p["recipient_id"] = INSTAGRAM_DEFAULT_PSID
-                    Log.i(TAG, "Instagram recipient_id normalized: <len=${rawRid.length}> → default PSID <len=${INSTAGRAM_DEFAULT_PSID.length}>")
+                    p["recipient_id"] = getInstagramPsid()
+                    Log.i(TAG, "Instagram recipient_id normalized: <len=${rawRid.length}>")
                 }
                 // Normalize message → text
                 p.remove("message")?.let { p.putIfAbsent("text", it) }
