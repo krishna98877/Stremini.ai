@@ -1051,13 +1051,24 @@ class ComposioClient(
 
         while (attempt <= maxRetries) {
             try {
-                return@withContext Result.success(
-                    executeActionInternal(actionId, params, connectedAccountId, serviceId)
-                )
+                // Circuit breaker check — skip if circuit is open
+                if (serviceId != null && !allowRequest(serviceId)) {
+                    error("${ALL_SERVICES.find { it.id == serviceId }?.name ?: serviceId} circuit breaker is OPEN — too many failures. Wait 5 minutes and try again.")
+                }
+
+                val result = executeActionInternal(actionId, params, connectedAccountId, serviceId)
+
+                // Success — reset circuit breaker
+                if (serviceId != null) recordSuccess(serviceId)
+
+                return@withContext Result.success(result)
             } catch (e: Throwable) {
                 lastError = e
                 val msg = e.message ?: ""
                 attempt++
+
+                // Record failure in circuit breaker
+                if (serviceId != null) recordFailure(serviceId)
 
                 // Determine error type and whether to retry
                 val errorType = classifyError(msg)
@@ -1163,6 +1174,174 @@ class ComposioClient(
         var result = 1L
         repeat(exp) { result *= this }
         return result
+    }
+
+    // ── Circuit Breaker Pattern ──────────────────────────────────────
+    // Per-app circuit breaker: after 5 consecutive failures, the circuit
+    // "opens" (stops all requests to that app) for 5 minutes. After the
+    // timeout, it goes "half-open" (allows 1 test call). If the test
+    // succeeds, the circuit "closes" (normal operation). If it fails,
+    // the circuit re-opens for another 5 minutes.
+    //
+    // Global circuit breaker: if 3+ apps have open circuits simultaneously,
+    // the system enters "recovery mode" — all new automation requests are
+    // rejected with a "system recovering" message until at least one app
+    // recovers.
+    //
+    // States: CLOSED (normal) → OPEN (blocked) → HALF_OPEN (testing) → CLOSED
+
+    private enum class CircuitState {
+        CLOSED,     // Normal operation — requests pass through
+        OPEN,       // Blocked — all requests rejected immediately
+        HALF_OPEN   // Testing — 1 request allowed to probe recovery
+    }
+
+    private data class CircuitBreaker(
+        var state: CircuitState = CircuitState.CLOSED,
+        var consecutiveFailures: Int = 0,
+        var openedAt: Long = 0,         // when circuit opened (epoch ms)
+        var halfOpenTestDone: Boolean = false,
+    )
+
+    @Volatile
+    private val circuitBreakers = mutableMapOf<String, CircuitBreaker>()
+    private val circuitLock = Any()
+
+    private val CIRCUIT_FAILURE_THRESHOLD = 5        // 5 consecutive failures → open
+    private val CIRCUIT_RECOVERY_TIMEOUT_MS = 5 * 60 * 1000L  // 5 minutes
+    private val GLOBAL_MAX_CONCURRENT_FAILURES = 3   // 3 open circuits → system recovery
+
+    /**
+     * Check if a request to [serviceId] should be allowed by the circuit breaker.
+     * Returns true if the request should proceed, false if the circuit is open.
+     *
+     * CLOSED → always allow
+     * OPEN → check if recovery timeout has passed:
+     *   - No → reject (circuit still open)
+     *   - Yes → transition to HALF_OPEN, allow 1 test call
+     * HALF_OPEN → allow 1 test call, then block until result
+     */
+    private fun allowRequest(serviceId: String): Boolean {
+        synchronized(circuitLock) {
+            val cb = circuitBreakers.getOrPut(serviceId) { CircuitBreaker() }
+            val now = System.currentTimeMillis()
+
+            // Check global recovery mode
+            val openCount = circuitBreakers.values.count { it.state == CircuitState.OPEN }
+            if (openCount >= GLOBAL_MAX_CONCURRENT_FAILURES) {
+                Log.w(TAG, "Global circuit breaker: $openCount apps in OPEN state — system recovery mode")
+                return false
+            }
+
+            when (cb.state) {
+                CircuitState.CLOSED -> return true
+
+                CircuitState.OPEN -> {
+                    // Check if recovery timeout has passed
+                    if (now - cb.openedAt > CIRCUIT_RECOVERY_TIMEOUT_MS) {
+                        // Transition to half-open — allow 1 test call
+                        cb.state = CircuitState.HALF_OPEN
+                        cb.halfOpenTestDone = false
+                        Log.i(TAG, "Circuit for $serviceId: OPEN → HALF_OPEN (testing recovery)")
+                        return true
+                    }
+                    // Still in timeout — reject
+                    return false
+                }
+
+                CircuitState.HALF_OPEN -> {
+                    // Only allow 1 test call in half-open state
+                    if (!cb.halfOpenTestDone) {
+                        cb.halfOpenTestDone = true
+                        return true
+                    }
+                    // Test call already in progress — reject
+                    return false
+                }
+            }
+        }
+    }
+
+    /**
+     * Record a successful execution — resets the circuit breaker to CLOSED.
+     */
+    private fun recordSuccess(serviceId: String) {
+        synchronized(circuitLock) {
+            val cb = circuitBreakers.getOrPut(serviceId) { CircuitBreaker() }
+            if (cb.state != CircuitState.CLOSED) {
+                Log.i(TAG, "Circuit for $serviceId: ${cb.state} → CLOSED (recovered)")
+            }
+            cb.state = CircuitState.CLOSED
+            cb.consecutiveFailures = 0
+            cb.halfOpenTestDone = false
+        }
+    }
+
+    /**
+     * Record a failed execution — increments failure count, may open circuit.
+     */
+    private fun recordFailure(serviceId: String) {
+        synchronized(circuitLock) {
+            val cb = circuitBreakers.getOrPut(serviceId) { CircuitBreaker() }
+            cb.consecutiveFailures++
+
+            if (cb.state == CircuitState.HALF_OPEN) {
+                // Test call failed — re-open the circuit
+                cb.state = CircuitState.OPEN
+                cb.openedAt = System.currentTimeMillis()
+                cb.halfOpenTestDone = false
+                Log.w(TAG, "Circuit for $serviceId: HALF_OPEN → OPEN (test call failed, waiting ${CIRCUIT_RECOVERY_TIMEOUT_MS / 1000}s)")
+            } else if (cb.consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
+                // Threshold reached — open the circuit
+                cb.state = CircuitState.OPEN
+                cb.openedAt = System.currentTimeMillis()
+                Log.w(TAG, "Circuit for $serviceId: CLOSED → OPEN ($cb consecutive failures, waiting ${CIRCUIT_RECOVERY_TIMEOUT_MS / 1000}s)")
+            }
+
+            // Check global recovery mode
+            val openCount = circuitBreakers.values.count { it.state == CircuitState.OPEN }
+            if (openCount >= GLOBAL_MAX_CONCURRENT_FAILURES) {
+                Log.e(TAG, "GLOBAL CIRCUIT BREAKER: $openCount apps in OPEN state — entering system recovery mode")
+            }
+        }
+    }
+
+    /**
+     * Get the current circuit breaker state for a service (for diagnostics).
+     */
+    fun getCircuitState(serviceId: String): String {
+        synchronized(circuitLock) {
+            val cb = circuitBreakers[serviceId] ?: return "CLOSED (healthy)"
+            return "${cb.state} (failures: ${cb.consecutiveFailures})" +
+                if (cb.state == CircuitState.OPEN) {
+                    val remaining = (CIRCUIT_RECOVERY_TIMEOUT_MS - (System.currentTimeMillis() - cb.openedAt)) / 1000
+                    " — ${maxOf(0, remaining)}s until recovery test"
+                } else ""
+        }
+    }
+
+    /**
+     * Get a full circuit breaker report (for the health check system).
+     */
+    fun getCircuitBreakerReport(): String {
+        synchronized(circuitLock) {
+            if (circuitBreakers.isEmpty()) return "All circuits healthy"
+            val sb = StringBuilder()
+            val openCount = circuitBreakers.values.count { it.state == CircuitState.OPEN }
+            if (openCount >= GLOBAL_MAX_CONCURRENT_FAILURES) {
+                sb.append("⚠️ SYSTEM RECOVERY MODE ($openCount apps failing)\n")
+            }
+            for ((svcId, cb) in circuitBreakers) {
+                val svcName = ALL_SERVICES.find { it.id == svcId }?.name ?: svcId
+                val icon = when (cb.state) {
+                    CircuitState.CLOSED -> "✅"
+                    CircuitState.OPEN -> "❌"
+                    CircuitState.HALF_OPEN -> "🟡"
+                }
+                sb.append("  $icon $svcName: ${cb.state} (${cb.consecutiveFailures} failures)\n")
+            }
+            return sb.toString().trim()
+        }
     }
 
     private suspend fun executeActionInternal(

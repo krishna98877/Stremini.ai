@@ -165,6 +165,11 @@ class HealthCheckMonitor(
         }
         report.append("\n")
 
+        // Step 3b: Circuit breaker status
+        report.append("3b. CIRCUIT BREAKERS\n")
+        val circuitReport = composioClient.getCircuitBreakerReport()
+        report.append("   $circuitReport\n\n")
+
         // Step 4: Auto-fix recommendations
         report.append("4. RECOMMENDATIONS\n")
         if (expiredApps.isNotEmpty()) {
