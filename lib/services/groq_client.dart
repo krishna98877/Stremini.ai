@@ -78,17 +78,8 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
       }),
     );
 
-    if (response.statusCode == 401) {
-      throw Exception('Invalid API key. Please update your Groq key.');
-    }
-    if (response.statusCode == 429) {
-      throw Exception('Rate limit reached. Please wait a moment.');
-    }
-    if (response.statusCode >= 500) {
-      throw Exception('Groq is temporarily unavailable. Try again.');
-    }
     if (response.statusCode != 200) {
-      throw Exception('Could not get a response. Please try again.');
+      throw Exception('Groq API error ${response.statusCode}: ${response.body}');
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;

@@ -129,12 +129,8 @@ Rules:
             secureHttpClient(15, 45, "groq_chat").newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorBody = response.body?.string() ?: ""
-                    when (response.code) {
-                        401 -> error("Invalid API key. Please update your Groq key in Settings.")
-                        429 -> error("Rate limit reached. Please wait a moment and try again.")
-                        500, 502, 503 -> error("Groq service is temporarily unavailable. Please try again.")
-                        else -> error("Could not get a response. Please try again. (Error ${response.code})")
-                    }
+                    // Show the REAL error body so we can debug — no sanitization
+                    error("Groq API error ${response.code}: $errorBody")
                 }
 
                 val body = response.body?.string() ?: "{}"
@@ -152,24 +148,12 @@ Rules:
                 // Check for error in response body
                 if (json.has("error")) {
                     val errorObj = json.getJSONObject("error")
-                    error(errorObj.optString("message", "Unknown error from Groq."))
+                    error("Groq error: ${errorObj.optString("message", "Unknown error")}")
                 }
 
                 "I couldn't generate a response. Please try again."
             }
-        }.mapGroqFailure()
+        }
     }
 
-}
-
-/** Map Groq API errors to user-friendly messages */
-private fun <T> Result<T>.mapGroqFailure(): Result<T> {
-    return this.recoverCatching { throwable ->
-        val rawMessage = throwable.message ?: "Unknown error"
-        val safeMessage = rawMessage
-            .replace(Regex("https?://[^\\s,]+"), "the server")
-            .replace(Regex("[a-zA-Z0-9._-]+\\.[a-zA-Z]{2,6}(:\\d+)?(/[^\\s]*)?"), "the server")
-            .trim()
-        throw RuntimeException(if (safeMessage.isBlank()) "Something went wrong. Please try again." else safeMessage)
-    }
 }
