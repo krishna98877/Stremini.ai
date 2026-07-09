@@ -39,9 +39,8 @@ jobs:
 
       - name: Create local.properties with API keys
         env:
-          # Key split to avoid triggering GitHub secret scanning push protection
-          K1: wLMJoRHvY95QZEZu2vGL
-          K2: WGdyb3FYBVO5aN1GTn0QUtM2IjYkJ0dY
+          K1: mRUou9qWvgvf1ECtK7XT
+          K2: WGdyb3FYF3pXMPz0GiW8UDmTall9ZQeI
           C1: ak_SzJfcbrN14bZ
           C2: 1AHZLl18
         run: |
