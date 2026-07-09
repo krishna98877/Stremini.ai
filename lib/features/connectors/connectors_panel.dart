@@ -77,60 +77,66 @@ class _ConnectorsPanelSheetState extends State<_ConnectorsPanelSheet>
     return kComposioServices.where((s) => s.name.toLowerCase().contains(q)).toList();
   }
 
+  // Toggle state for connected services (enable/disable automation)
+  final Map<String, bool> _toggleStates = {};
+
   Future<void> _toggle(ComposioService svc) async {
     HapticFeedback.lightImpact();
     final connected = widget.manager.isServiceConnected(svc.id);
 
-    if (connected) {
-      // Show confirmation dialog before disconnecting
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1A1A),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Text('Disconnect ${svc.name}?',
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
-          content: Text('You won\'t be able to automate ${svc.name} until you reconnect.',
-            style: const TextStyle(color: Color(0xFF888888), fontSize: 13)),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF666666))),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              style: TextButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              child: const Text('Disconnect', style: TextStyle(fontWeight: FontWeight.w600)),
-            ),
-          ],
-        ),
-      );
-      if (confirmed != true) return;
-      if (!mounted) return;
-
-      setState(() => _connecting = svc.id);
-      await widget.manager.disconnectService(svc.id);
-      await widget.manager.refreshServiceStatuses();
-      if (mounted) setState(() => _connecting = null);
-    } else {
+    if (!connected) {
       // Connect — opens Chrome for OAuth
       setState(() => _connecting = svc.id);
       await widget.manager.connectService(svc.id);
-      // Poll for connection every 1s for up to 30s
       for (int i = 0; i < 30; i++) {
         await Future.delayed(const Duration(seconds: 1));
         await widget.manager.refreshServiceStatuses();
-        if (widget.manager.isServiceConnected(svc.id)) {
-          break;
-        }
+        if (widget.manager.isServiceConnected(svc.id)) break;
         if (!mounted) return;
       }
       if (mounted) setState(() => _connecting = null);
     }
+    // If connected: the toggle switch handles enable/disable
+  }
+
+  void _onToggleChanged(ComposioService svc, bool value) {
+    setState(() => _toggleStates[svc.id] = value);
+  }
+
+  Future<void> _disconnectWithConfirm(ComposioService svc) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Disconnect ${svc.name}?',
+            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+        content: Text('You won\'t be able to automate ${svc.name} until you reconnect.',
+            style: const TextStyle(color: Color(0xFF888888), fontSize: 13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF666666))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Disconnect', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    setState(() => _connecting = svc.id);
+    await widget.manager.disconnectService(svc.id);
+    await widget.manager.refreshServiceStatuses();
+    if (mounted) setState(() => _connecting = null);
   }
 
   @override
@@ -310,7 +316,10 @@ class _ConnectorsPanelSheetState extends State<_ConnectorsPanelSheet>
         service: services[i],
         isConnected: widget.manager.isServiceConnected(services[i].id),
         isLoading: _connecting == services[i].id,
+        isToggledOn: _toggleStates[services[i].id] ?? false,
         onTap: () => _toggle(services[i]),
+        onToggleChanged: (val) => _onToggleChanged(services[i], val),
+        onDisconnect: () => _disconnectWithConfirm(services[i]),
       ),
     );
   }
@@ -323,13 +332,19 @@ class _ServiceTile extends StatefulWidget {
   final ComposioService service;
   final bool isConnected;
   final bool isLoading;
+  final bool isToggledOn;
   final VoidCallback onTap;
+  final ValueChanged<bool> onToggleChanged;
+  final VoidCallback onDisconnect;
 
   const _ServiceTile({
     required this.service,
     required this.isConnected,
     required this.isLoading,
+    required this.isToggledOn,
     required this.onTap,
+    required this.onToggleChanged,
+    required this.onDisconnect,
   });
 
   @override
@@ -422,7 +437,7 @@ class _ServiceTileState extends State<_ServiceTile>
                   ],
                 ),
               ),
-              // Action button — white bg, black text, simple
+              // Right side: toggle (connected) or Connect button (disconnected)
               if (widget.isLoading)
                 const SizedBox(
                   width: 22,
@@ -432,9 +447,23 @@ class _ServiceTileState extends State<_ServiceTile>
                     color: Colors.white,
                   ),
                 )
+              else if (widget.isConnected)
+                // Toggle switch — long-press to disconnect
+                GestureDetector(
+                  onLongPress: widget.onDisconnect,
+                  child: Switch(
+                    value: widget.isToggledOn,
+                    onChanged: widget.onToggleChanged,
+                    activeTrackColor: const Color(0xFF23A6E2),
+                    inactiveTrackColor: const Color(0xFF333333),
+                    activeThumbColor: Colors.white,
+                    inactiveThumbColor: const Color(0xFF888888),
+                  ),
+                )
               else
+                // Connect button — white bg, black text
                 _ActionButton(
-                  isConnected: widget.isConnected,
+                  isConnected: false,
                   onTap: widget.onTap,
                 ),
             ],
