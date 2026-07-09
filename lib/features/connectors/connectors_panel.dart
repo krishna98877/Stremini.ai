@@ -80,26 +80,52 @@ class _ConnectorsPanelSheetState extends State<_ConnectorsPanelSheet>
   Future<void> _toggle(ComposioService svc) async {
     HapticFeedback.lightImpact();
     final connected = widget.manager.isServiceConnected(svc.id);
-    setState(() => _connecting = svc.id);
 
     if (connected) {
-      // Disconnect — completes synchronously, refresh immediately
+      // Show confirmation dialog before disconnecting
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text('Disconnect ${svc.name}?',
+            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+          content: Text('You won\'t be able to automate ${svc.name} until you reconnect.',
+            style: const TextStyle(color: Color(0xFF888888), fontSize: 13)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel', style: TextStyle(color: Color(0xFF666666))),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: const Text('Disconnect', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+      if (!mounted) return;
+
+      setState(() => _connecting = svc.id);
       await widget.manager.disconnectService(svc.id);
       await widget.manager.refreshServiceStatuses();
       if (mounted) setState(() => _connecting = null);
     } else {
-      // Connect — opens Chrome for OAuth, returns immediately.
-      // DON'T refresh status yet — OAuth hasn't completed.
-      // The event stream will fire "connection_success" when done,
-      // which triggers refreshServiceStatuses() automatically.
+      // Connect — opens Chrome for OAuth
+      setState(() => _connecting = svc.id);
       await widget.manager.connectService(svc.id);
-      // Keep the loading spinner showing until the user comes back from Chrome
-      // and the event stream fires. Give it a 30s timeout.
+      // Poll for connection every 1s for up to 30s
       for (int i = 0; i < 30; i++) {
         await Future.delayed(const Duration(seconds: 1));
         await widget.manager.refreshServiceStatuses();
         if (widget.manager.isServiceConnected(svc.id)) {
-          break;  // Connection detected!
+          break;
         }
         if (!mounted) return;
       }

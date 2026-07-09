@@ -129,6 +129,10 @@ Rules:
             secureHttpClient(15, 45, "groq_chat").newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorBody = response.body?.string() ?: ""
+                    // Check for organization_restricted — Groq flagged the account
+                    if (errorBody.contains("organization_restricted")) {
+                        error("Your Groq account has been restricted. Go to https://console.groq.com and check your account status, or generate a new API key.")
+                    }
                     // Show the REAL error body so we can debug — no sanitization
                     error("Groq API error ${response.code}: $errorBody")
                 }

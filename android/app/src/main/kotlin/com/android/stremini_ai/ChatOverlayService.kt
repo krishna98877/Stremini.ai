@@ -937,14 +937,22 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             isFocusable = true
         }
 
-        // Icon (32dp, brand logo)
+        // Icon — brand-colored solid circle with white logo (matches Flutter design)
         val icon = ImageView(this).apply {
             setImageResource(svc.iconRes)
             scaleType = ImageView.ScaleType.FIT_CENTER
-            val size = (32 * density).toInt()
+            val size = (36 * density).toInt()
             layoutParams = LinearLayout.LayoutParams(size, size).apply {
                 marginEnd = (14 * density).toInt()
             }
+            // Tint the icon white so it shows on the brand-colored background
+            setColorFilter(Color.WHITE)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                cornerRadius = (10 * density)
+                setColor(svc.color.toInt())
+            }
+            setPadding((8 * density).toInt(), (8 * density).toInt(), (8 * density).toInt(), (8 * density).toInt())
         }
         row.addView(icon)
 
@@ -961,7 +969,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         }
         val status = TextView(this).apply {
             text = if (isConnected) "Connected" else "Not connected"
-            setTextColor(if (isConnected) Color.parseColor("#22C55E") else Color.parseColor("#71717A"))
+            setTextColor(Color.parseColor("#666666"))  // grey for both — no green
             textSize = 11f
             id = View.generateViewId()
             tag = "row_status"
@@ -971,51 +979,59 @@ class ChatOverlayService : Service(), View.OnTouchListener {
         row.addView(textContainer)
 
         if (isConnected) {
-            // Toggle switch — defaults to OFF so the user explicitly opts in.
-            // The toggle state is persisted in ComposioClient (EncryptedPrefs)
-            // so ChatCommandCoordinator can read it when deciding whether to
-            // route a chat message to automation.
-            val toggle = android.widget.Switch(this).apply {
-                // Read the persisted state (defaults to false = OFF)
-                val isActive = activeConnectors[svc.id] ?: false
-                // Initialize the in-memory map + persisted pref
-                if (!activeConnectors.containsKey(svc.id)) {
-                    activeConnectors[svc.id] = isActive
-                }
-                isChecked = isActive
-                trackDrawable = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.toggle_bg)
-                thumbDrawable = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.toggle_thumb)
-                setOnCheckedChangeListener { _, checked ->
-                    activeConnectors[svc.id] = checked
-                    // Persist the toggle state so ChatCommandCoordinator can read it
-                    composioClient.setConnectorActive(svc.id, checked)
-                    if (checked) {
-                        Toast.makeText(this@ChatOverlayService, "${svc.name} enabled for automation", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this@ChatOverlayService, "${svc.name} disabled", Toast.LENGTH_SHORT).show()
-                    }
-                    updateChatConnectorsToggleIcon()
-                }
-            }
-            row.addView(toggle)
-        } else {
-            // Connect button (Manus-style outline button)
-            val connectBtn = TextView(this).apply {
-                text = "Connect"
-                setTextColor(Color.parseColor("#FFFFFF"))
+            // Disconnect button — WHITE bg, BLACK text (matches Flutter design)
+            val disconnectBtn = TextView(this).apply {
+                text = "Disconnect"
+                setTextColor(Color.BLACK)
                 textSize = 12f
                 typeface = Typeface.DEFAULT_BOLD
                 gravity = Gravity.CENTER
-                background = ContextCompat.getDrawable(this@ChatOverlayService, R.drawable.manus_connect_btn)
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    cornerRadius = (20 * density)
+                    setColor(Color.WHITE)
+                }
                 val padH = (16 * density).toInt()
-                val padV = (6 * density).toInt()
+                val padV = (7 * density).toInt()
                 setPadding(padH, padV, padH, padV)
                 isClickable = true
                 isFocusable = true
                 setOnClickListener {
-                    text = "Connecting..."
-                    setTextColor(Color.parseColor("#9CA3AF"))
-                    // Close panel + launch OAuth flow
+                    // Disconnect — calls ComposioClient
+                    text = "..."
+                    setTextColor(Color.GRAY)
+                    serviceScope.launch {
+                        composioClient.disconnectService(svc.id)
+                        invalidateConnectedServicesCache()
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            hideConnectedAppsPanel()
+                            showConnectedAppsPanel()  // refresh
+                        }
+                    }
+                }
+            }
+            row.addView(disconnectBtn)
+        } else {
+            // Connect button — WHITE bg, BLACK text (matches Flutter design)
+            val connectBtn = TextView(this).apply {
+                text = "Connect"
+                setTextColor(Color.BLACK)
+                textSize = 12f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                    cornerRadius = (20 * density)
+                    setColor(Color.WHITE)
+                }
+                val padH = (16 * density).toInt()
+                val padV = (7 * density).toInt()
+                setPadding(padH, padV, padH, padV)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    text = "..."
+                    setTextColor(Color.GRAY)
                     hideConnectedAppsPanel()
                     composioClient.connectService(svc.id)
                 }

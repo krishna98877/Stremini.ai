@@ -79,7 +79,11 @@ Keep responses concise and conversational. You're inside a floating chat bubble,
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Groq API error ${response.statusCode}: ${response.body}');
+      final body = response.body;
+      if (body.contains('organization_restricted')) {
+        throw Exception('Your Groq account has been restricted. Go to https://console.groq.com and check your account status, or generate a new API key.');
+      }
+      throw Exception('Groq API error ${response.statusCode}: $body');
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
