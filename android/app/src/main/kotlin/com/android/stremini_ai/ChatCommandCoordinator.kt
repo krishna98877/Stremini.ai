@@ -76,6 +76,8 @@ class ChatCommandCoordinator(
 
                 if (isActive) {
                     // Connector toggled ON + service connected → route to automation
+                    // Show a single "On it!" message, then execute silently.
+                    // Only show the result (success or error) — no intermediate messages.
                     onBotMessage("On it! Using ${detectedService.name}...")
                     composioClient.executeAutomation(
                         instruction = sanitizedMessage,
@@ -86,20 +88,17 @@ class ChatCommandCoordinator(
                             onBotMessage(reply)
                         }
                         .onFailure { error ->
-                            // ── Show the REAL technical error so we can debug ──
                             val errorMsg = error.message ?: "Unknown error"
-                            // Don't retry on permanent errors
                             val isPermanentError = errorMsg.contains("not connected", ignoreCase = true) ||
                                 errorMsg.contains("expired", ignoreCase = true) ||
                                 errorMsg.contains("Permission denied", ignoreCase = true) ||
                                 errorMsg.contains("not configured", ignoreCase = true)
                             if (isPermanentError) {
-                                addToHistory("assistant", "Automation failed: $errorMsg")
-                                onBotMessage("[ERROR] ${detectedService.name} automation failed:\n$errorMsg")
+                                addToHistory("assistant", "[ERROR] $errorMsg")
+                                onBotMessage("[ERROR] ${detectedService.name}: $errorMsg")
                                 return@launch
                             }
-                            // Retryable error — tell the user we're trying again
-                            onBotMessage("Let me try that again...")
+                            // Retry once silently — no "let me try again" message
                             kotlinx.coroutines.delay(1500)
                             composioClient.executeAutomation(
                                 instruction = sanitizedMessage,
@@ -110,10 +109,9 @@ class ChatCommandCoordinator(
                                     onBotMessage(reply)
                                 }
                                 .onFailure { error2 ->
-                                    // Show the REAL technical error — no sanitization
                                     val finalError = error2.message ?: "Unknown error"
-                                    addToHistory("assistant", "Automation failed after retry: $finalError")
-                                    onBotMessage("[ERROR] ${detectedService.name} automation failed after retry:\n$finalError")
+                                    addToHistory("assistant", "[ERROR] $finalError")
+                                    onBotMessage("[ERROR] ${detectedService.name}: $finalError")
                                 }
                         }
                 } else {
@@ -145,7 +143,11 @@ class ChatCommandCoordinator(
     }
 
     private suspend fun sendToBackend(message: String, history: List<Map<String, String>>) {
-        backendClient.sendChatMessage(message, history)
+        // Pass connected services to Groq so the AI knows what's available
+        val connectedServices = runCatching {
+            composioClient.getConnectedServices()
+        }.getOrDefault(emptyMap())
+        backendClient.groq.sendMessage(message, history, connectedServices)
             .onSuccess { reply ->
                 addToHistory("assistant", reply)
                 onBotMessage(reply)

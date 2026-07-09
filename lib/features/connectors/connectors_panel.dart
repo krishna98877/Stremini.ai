@@ -448,17 +448,34 @@ class _ServiceTileState extends State<_ServiceTile>
                   ),
                 )
               else if (widget.isConnected)
-                // Toggle switch — long-press to disconnect
-                GestureDetector(
-                  onLongPress: widget.onDisconnect,
-                  child: Switch(
-                    value: widget.isToggledOn,
-                    onChanged: widget.onToggleChanged,
-                    activeTrackColor: const Color(0xFF23A6E2),
-                    inactiveTrackColor: const Color(0xFF333333),
-                    activeThumbColor: Colors.white,
-                    inactiveThumbColor: const Color(0xFF888888),
-                  ),
+                // Toggle + disconnect button side by side
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Switch(
+                      value: widget.isToggledOn,
+                      onChanged: widget.onToggleChanged,
+                      activeTrackColor: const Color(0xFF23A6E2),
+                      inactiveTrackColor: const Color(0xFF333333),
+                      activeThumbColor: Colors.white,
+                      inactiveThumbColor: const Color(0xFF888888),
+                    ),
+                    // Small disconnect (×) button
+                    GestureDetector(
+                      onTap: widget.onDisconnect,
+                      child: Container(
+                        width: 28, height: 28,
+                        margin: const EdgeInsets.only(left: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1A1A1A),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF333333)),
+                        ),
+                        child: const Icon(Icons.close_rounded,
+                            color: Color(0xFF888888), size: 16),
+                      ),
+                    ),
+                  ],
                 )
               else
                 // Connect button — white bg, black text

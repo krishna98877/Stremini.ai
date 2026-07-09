@@ -200,6 +200,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   // ── Send ───────────────────────────────────────────────────────────────────
 
   void _send() {
+    // Block sending while AI is processing
+    if (ref.read(chatNotifierProvider.notifier).isProcessing) return;
     final text = _controller.text.trim();
     if (text.isEmpty && _selectedFile == null) return;
 
@@ -704,18 +706,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
             const SizedBox(width: 8),
-            // Send button
+            // Send button — disabled (grey) while AI is processing, animated
             GestureDetector(
-              onTap: _send,
-              child: Container(
+              onTap: () {
+                final isProcessing = ref.read(chatNotifierProvider.notifier).isProcessing;
+                if (isProcessing) return;
+                _send();
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 width: 40, height: 40,
                 margin: const EdgeInsets.only(bottom: 6),
                 decoration: BoxDecoration(
-                  color: _accent,
+                  color: ref.watch(chatNotifierProvider.notifier).isProcessing
+                      ? const Color(0xFF333333)
+                      : _accent,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.arrow_upward_rounded,
-                    color: Colors.white, size: 20),
+                child: ref.watch(chatNotifierProvider.notifier).isProcessing
+                    ? const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white54),
+                          ),
+                        ),
+                      )
+                    : const Icon(Icons.arrow_upward_rounded,
+                        color: Colors.white, size: 20),
               ),
             ),
           ],
