@@ -1279,26 +1279,52 @@ class ComposioClient(
     }
 
     /**
-     * Fix P3: Cheap local check for multi-step intent signals.
+     * Fix P3 + Cross-app detection: Check if a message involves multiple services
+     * or multi-step intent signals.
      *
-     * Looks for connector words that strongly indicate a multi-step request:
-     * "then", "after that", "also", "and then", "followed by", "next",
-     * "finally", "lastly", "secondly", etc.
-     *
-     * This is a heuristic — false positives just mean we run the multi-step
-     * planner unnecessarily (correctness preserved, just slightly slower).
-     * False negatives would split a multi-step request into a single step,
-     * which the LLM would handle gracefully by picking the primary action.
+     * Triggers multi-step planner when:
+     * 1. Connector words present ("then", "after that", "also", etc.)
+     * 2. MULTIPLE services detected in the message (cross-app automation)
+     *    e.g., "post to Instagram and Facebook and LinkedIn" → 3 services
+     * 3. Distribution patterns: "share across", "post everywhere", "send to all"
+     * 4. Cross-app chaining: "check email then add to sheets"
      */
     private fun looksLikeMultiStep(instruction: String): Boolean {
-        val lower = instruction.lowercase()
+        val lower = " ${instruction.lowercase()} "
+
+        // 1. Connector words
         val connectorWords = listOf(
             " then ", " after that ", " and then ", " also ",
             " followed by ", " next ", " finally ", " lastly ",
             " secondly ", " thirdly ", " afterwards ", " and after ",
             " first ", " second ", " third "
         )
-        return connectorWords.any { lower.contains(it) }
+        if (connectorWords.any { lower.contains(it) }) return true
+
+        // 2. Multiple services detected → cross-app automation
+        var serviceCount = 0
+        for (svc in ALL_SERVICES) {
+            for (kw in svc.keywords) {
+                val matched = if (kw.length <= 3) {
+                    Regex("\\b${Regex.escape(kw)}\\b").containsMatchIn(lower)
+                } else {
+                    lower.contains(kw)
+                }
+                if (matched) { serviceCount++; break }
+            }
+        }
+        if (serviceCount >= 2) return true
+
+        // 3. Distribution patterns
+        val distributionPhrases = listOf(
+            "post everywhere", "share across", "send to all",
+            "cross-post", "cross post", "distribute", "multiple platforms",
+            "all my accounts", "all platforms", "every platform",
+            "post on all", "share on all", "sync to"
+        )
+        if (distributionPhrases.any { lower.contains(it) }) return true
+
+        return false
     }
 
     /**
@@ -1413,12 +1439,34 @@ Given a user request, break it into sequential automation steps. Each step targe
 Available services: $serviceCatalog
 Available actions (common ones): $actionCatalog
 
+CROSS-APP AUTOMATION PATTERNS — recognize these and create multi-step plans:
+
+1. CONTENT DISTRIBUTION (same content → multiple platforms):
+   "post hello on instagram, facebook, and linkedin" → 3 independent steps, same content.
+   Each step gets the same message text but different param names per service.
+
+2. CROSS-APP CHAINING (output of step 1 feeds into step 2):
+   "check my gmail for invoices then add them to google sheets" → 2 dependent steps.
+   Step 2 has "_dependsOnPreviousStep": true and receives step 1's output.
+
+3. MULTI-PLATFORM POSTING (same post everywhere):
+   "post 'Hello World' on all my social media" → Instagram + Facebook + LinkedIn + Reddit steps.
+   All run concurrently (no _dependsOnPreviousStep).
+
+4. ANALYTICS GATHERING (collect data from multiple sources):
+   "get my youtube stats and instagram insights" → 2 independent read steps.
+
+5. SYNC/BACKUP (copy data between apps):
+   "save my youtube video titles to google sheets" → YouTube list → Sheets append (dependent).
+
 Rules:
 - If the request only involves ONE service, return a JSON array with a single element.
 - If the request involves MULTIPLE services, return multiple steps in execution order.
 - Each step must have: "serviceId" (lowercase), "serviceName", "actionId" (COMPOSIO_ACTION_ID format), "params" (flat key-value map).
 - Fill in as many params as possible from the user's request. Leave unknown values as empty strings.
 - If a later step depends on a previous step's output, add a placeholder param "_dependsOnPreviousStep": true.
+- For distribution patterns (same content to multiple platforms), do NOT add _dependsOnPreviousStep — they run concurrently.
+- For chaining patterns (output feeds next step), DO add _dependsOnPreviousStep: true.
 - Use EXACT Composio param names — wrong names silently fail:
   * WhatsApp: {"to_number":"<phone or name>","text":"<msg>","phone_number_id":"$WHATSAPP_PHONE_NUMBER_ID"}
   * Gmail: {"to":"<email>","subject":"<subj>","body":"<content>"}
@@ -1437,7 +1485,8 @@ Return ONLY a valid JSON array, nothing else.
 User request: ${protectForAi(instruction, source = "multi-step automation")}
 
 Example single-service: [{"serviceId":"gmail","serviceName":"Gmail","actionId":"GMAIL_SEND_EMAIL","params":{"to":"john@example.com","subject":"Hello","body":"Hi there"}}]
-Example multi-service: [{"serviceId":"gmail","serviceName":"Gmail","actionId":"GMAIL_FETCH_EMAILS","params":{"query":"invoices","maxResults":5}},{"serviceId":"googlesheets","serviceName":"Google Sheets","actionId":"GOOGLESHEETS_SPREADSHEETS_VALUES_APPEND","params":{"spreadsheetId":"","range":"A1","values":"[[\"data\"]]","_dependsOnPreviousStep":true}}]"""
+Example cross-app distribution: [{"serviceId":"instagram","serviceName":"Instagram","actionId":"INSTAGRAM_SEND_TEXT_MESSAGE","params":{"recipient_id":"","text":"Hello World"}},{"serviceId":"facebook","serviceName":"Facebook","actionId":"FACEBOOK_CREATE_POST","params":{"message":"Hello World"}},{"serviceId":"linkedin","serviceName":"LinkedIn","actionId":"LINKEDIN_CREATE_LINKED_IN_POST","params":{"text":"Hello World"}}]
+Example cross-app chaining: [{"serviceId":"gmail","serviceName":"Gmail","actionId":"GMAIL_FETCH_EMAILS","params":{"query":"invoices","maxResults":5}},{"serviceId":"googlesheets","serviceName":"Google Sheets","actionId":"GOOGLESHEETS_SPREADSHEETS_VALUES_APPEND","params":{"spreadsheetId":"","range":"A1","values":"[[\"data\"]]","_dependsOnPreviousStep":true}}]"""
 
         val response = groqClient.sendMessage(message = prompt, history = emptyList())
             .getOrDefault("")
