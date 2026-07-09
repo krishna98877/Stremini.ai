@@ -183,16 +183,6 @@ class ComposioClient(
         )
 
         /**
-         * WhatsApp phone_number_id and Instagram PSID — NO LONGER hardcoded.
-         * Each user must provide their own via the connectors panel.
-         * Stored in EncryptedPrefs, not BuildConfig.
-         */
-        fun getWhatsappPhoneNumberId(): String = prefs.getString("whatsapp_phone_number_id") ?: ""
-        fun setWhatsappPhoneNumberId(id: String) { prefs.putString("whatsapp_phone_number_id", id) }
-        fun getInstagramPsid(): String = prefs.getString("instagram_psid") ?: ""
-        fun setInstagramPsid(id: String) { prefs.putString("instagram_psid", id) }
-
-        /**
          * Resolve the Composio auth_config_id for a given service at runtime.
          * Returns empty string if not configured (the connect flow will fail
          * gracefully and prompt the developer to set up the key in
@@ -224,6 +214,13 @@ class ComposioClient(
     init {
         runCatching { clearExpiredPendingConnects() }
     }
+
+    // ── User-provided WhatsApp/Instagram IDs (NOT hardcoded) ──────────
+    // Each user provides their own via the connectors panel.
+    fun getWhatsappPhoneNumberId(): String = prefs.getString("whatsapp_phone_number_id") ?: ""
+    fun setWhatsappPhoneNumberId(id: String) { prefs.putString("whatsapp_phone_number_id", id) }
+    fun getInstagramPsid(): String = prefs.getString("instagram_psid") ?: ""
+    fun setInstagramPsid(id: String) { prefs.putString("instagram_psid", id) }
 
     // ── Composio Consumer API Key ──────────────────────────────────
     // The key is injected at build time via BuildConfig (sourced from
