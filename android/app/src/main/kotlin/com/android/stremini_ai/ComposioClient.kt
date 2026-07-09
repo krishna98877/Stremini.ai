@@ -163,6 +163,23 @@ class ComposioClient(
             "youtube_comment" to "YOUTUBE_POST_COMMENT",
         )
 
+        /**
+         * Smart batching map — when multiple operations target the SAME service,
+         * use the batch tool instead of N individual calls.
+         * This reduces API consumption from N calls to 1 call.
+         */
+        val BATCH_TOOLS = mapOf(
+            "googlesheets" to mapOf(
+                "batch_read" to "GOOGLESHEETS_BATCH_GET",
+                "batch_write" to "GOOGLESHEETS_UPDATE_VALUES_BATCH",
+                "max_batch_size" to 100
+            ),
+            "gmail" to mapOf(
+                "batch_modify" to "GMAIL_BATCH_MODIFY_MESSAGES",
+                "max_batch_size" to 1000
+            ),
+        )
+
         /** Map serviceId → action ID prefix for LLM prompt filtering.
          * VERIFIED: prefixes match Composio's actual tool naming convention.
          * Google Drive tools use GOOGLEDRIVE_* (no underscore), Google Sheets
@@ -1378,33 +1395,81 @@ class ComposioClient(
                 results.add("$stepLabel: $stepResult")
                 previousResult = stepResult
             } else {
-                // Multiple independent steps — execute concurrently via async
-                // (Still N API calls, but parallel — 3-5s total instead of 15s+)
-                Log.i(TAG, "Batching ${batch.size} independent steps concurrently")
-                val deferreds = batch.mapIndexed { _, step ->
-                    val accountId = connected[step.serviceId]!!.first()
-                    val enrichedParams = step.params.toMutableMap().apply { remove("_dependsOnPreviousStep") }
-                    val normalizedParams = resolveContactParams(step.actionId, enrichedParams)
-                    val stepIdx = steps.indexOf(step)
-                    val stepLabel = "Step ${stepIdx + 1}/${steps.size} (${step.serviceName})${if (isCached) " [cached]" else ""}"
-                    Log.i(TAG, "$stepLabel: executing ${step.actionId} (concurrent)")
-                    workScope.async {
-                        val res = executeAction(
-                            step.actionId, normalizedParams, accountId,
-                            serviceId = step.serviceId
-                        ).getOrElse { e -> error("$stepLabel failed: ${e.message}") }
-                        Pair(stepIdx, stepLabel to res)
+                // Multiple independent steps — smart batching
+                // Group by service: if multiple steps target the SAME service,
+                // batch them into ONE API call using the batch tool.
+                val byService = batch.groupBy { it.serviceId }
+                val hasBatchableService = byService.any { (svcId, steps) ->
+                    steps.size > 1 && BATCH_TOOLS.containsKey(svcId)
+                }
+
+                if (hasBatchableService) {
+                    // Use smart batching for same-service steps
+                    Log.i(TAG, "Smart batching: ${batch.size} steps across ${byService.size} services")
+                    for ((svcId, svcSteps) in byService) {
+                        val accountId = connected[svcId]!!.first()
+                        val batchToolInfo = BATCH_TOOLS[svcId]
+
+                        if (svcSteps.size > 1 && batchToolInfo != null) {
+                            // Batch these steps into ONE call
+                            val batchActionId = batchToolInfo["batch_read"] as String
+                            val batchParams = mutableMapOf<String, Any>()
+                            svcSteps.forEachIndexed { idx, step ->
+                                val enriched = step.params.toMutableMap().apply { remove("_dependsOnPreviousStep") }
+                                val normalized = resolveContactParams(step.actionId, enriched)
+                                batchParams["request_$idx"] = normalized
+                            }
+                            val stepIdx = steps.indexOf(svcSteps.first())
+                            val stepLabel = "Step ${stepIdx + 1}-${stepIdx + svcSteps.size}/${steps.size} (${svcSteps.first().serviceName}) [batched]"
+                            Log.i(TAG, "$stepLabel: batched ${svcSteps.size} calls into 1 ($batchActionId)")
+                            val batchResult = executeAction(
+                                batchActionId, batchParams, accountId,
+                                serviceId = svcId
+                            ).getOrElse { e -> error("$stepLabel failed: ${e.message}") }
+                            results.add("$stepLabel: $batchResult")
+                            previousResult = batchResult
+                        } else {
+                            // Single step for this service — execute directly
+                            for (step in svcSteps) {
+                                val enriched = step.params.toMutableMap().apply { remove("_dependsOnPreviousStep") }
+                                val normalized = resolveContactParams(step.actionId, enriched)
+                                val stepIdx = steps.indexOf(step)
+                                val stepLabel = "Step ${stepIdx + 1}/${steps.size} (${step.serviceName})${if (isCached) " [cached]" else ""}"
+                                Log.i(TAG, "$stepLabel: executing ${step.actionId}")
+                                val res = executeAction(
+                                    step.actionId, normalized, accountId,
+                                    serviceId = step.serviceId
+                                ).getOrElse { e -> error("$stepLabel failed: ${e.message}") }
+                                results.add("$stepLabel: $res")
+                                previousResult = res
+                            }
+                        }
                     }
+                } else {
+                    // No batchable services — execute all concurrently via async
+                    Log.i(TAG, "Batching ${batch.size} independent steps concurrently")
+                    val deferreds = batch.mapIndexed { _, step ->
+                        val accountId = connected[step.serviceId]!!.first()
+                        val enrichedParams = step.params.toMutableMap().apply { remove("_dependsOnPreviousStep") }
+                        val normalizedParams = resolveContactParams(step.actionId, enrichedParams)
+                        val stepIdx = steps.indexOf(step)
+                        val stepLabel = "Step ${stepIdx + 1}/${steps.size} (${step.serviceName})${if (isCached) " [cached]" else ""}"
+                        Log.i(TAG, "$stepLabel: executing ${step.actionId} (concurrent)")
+                        workScope.async {
+                            val res = executeAction(
+                                step.actionId, normalizedParams, accountId,
+                                serviceId = step.serviceId
+                            ).getOrElse { e -> error("$stepLabel failed: ${e.message}") }
+                            Pair(stepIdx, stepLabel to res)
+                        }
+                    }
+                    val completed = deferreds.map { it.await() }
+                    completed.sortedBy { it.first }.forEach { (_, pair) ->
+                        val (label, res) = pair
+                        results.add("$label: $res")
+                    }
+                    previousResult = completed.lastOrNull()?.second?.second
                 }
-                // Await all concurrent steps
-                val completed = deferreds.map { it.await() }
-                // Sort by step index to maintain order in output
-                completed.sortedBy { it.first }.forEach { (_, pair) ->
-                    val (label, res) = pair
-                    results.add("$label: $res")
-                }
-                // Last result becomes previousResult for next dependent step
-                previousResult = completed.lastOrNull()?.second?.second
             }
         }
         return results.joinToString("\n")
