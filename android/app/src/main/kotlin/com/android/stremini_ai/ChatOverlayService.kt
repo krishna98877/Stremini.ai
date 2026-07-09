@@ -120,6 +120,7 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private lateinit var aiBackendClient: AIBackendClient
     private lateinit var chatCommandCoordinator: ChatCommandCoordinator
+    private lateinit var healthCheckMonitor: HealthCheckMonitor
     private lateinit var bubbleController:        BubbleController
     private lateinit var floatingChatController: FloatingChatController
     private lateinit var idleAnimationController: IdleAnimationController
@@ -187,6 +188,10 @@ class ChatOverlayService : Service(), View.OnTouchListener {
             onBotMessage  = { message -> addMessageToChatbot(message, isUser = false) }
         )
         composioClient = chatCommandCoordinator.composioClient
+
+        // Start background health check monitor (runs every 6 hours)
+        healthCheckMonitor = HealthCheckMonitor(this, composioClient)
+        healthCheckMonitor.start()
 
         setupOverlay()
 
@@ -1248,7 +1253,20 @@ class ChatOverlayService : Service(), View.OnTouchListener {
     }
 
     // ── Message handling
-    private fun processUserCommand(userMessage: String) { chatCommandCoordinator.processUserMessage(userMessage) }
+    private fun processUserCommand(userMessage: String) {
+        // Intercept health check commands
+        val lower = userMessage.lowercase().trim()
+        if (lower == "health check" || lower == "run diagnostics" || lower == "status" || lower == "system status") {
+            addMessageToChatbot(userMessage, isUser = true)
+            addMessageToChatbot("Running health check...", isUser = false)
+            serviceScope.launch {
+                val report = healthCheckMonitor.forceCheckNow()
+                addMessageToChatbot(report, isUser = false)
+            }
+            return
+        }
+        chatCommandCoordinator.processUserMessage(userMessage)
+    }
 
     private fun addMessageToChatbot(message: String, isUser: Boolean) {
         floatingChatView?.let { view ->
