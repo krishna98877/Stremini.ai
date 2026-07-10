@@ -1204,7 +1204,7 @@ class ComposioClient(
     )
 
     @Volatile
-    private val circuitBreakers = mutableMapOf<String, CircuitBreaker>()
+    private var circuitBreakers = mutableMapOf<String, CircuitBreaker>()
     private val circuitLock = Any()
 
     private val CIRCUIT_FAILURE_THRESHOLD = 5        // 5 consecutive failures → open
@@ -1625,20 +1625,20 @@ class ComposioClient(
             // which meant every repeat command still paid the full 2-5s LLM
             // round-trip. Now we check both caches first — repeat commands
             // execute in ~0ms (cache hit) + the actual API call time.
-            val detectedService = detectService(instruction)
+            val detectedServiceForCache = detectService(instruction)
 
             // P1a: single-service cache check (only if we detected exactly one service)
-            if (detectedService != null) {
+            if (detectedServiceForCache != null) {
                 val cached = getCachedAutomation(instruction)
                 if (cached != null) {
                     val (cachedActionId, cachedParams) = cached
                     Log.i(TAG, "Automation cache HIT (pre-LLM): ${safeInstruction(instruction)} → $cachedActionId")
-                    val accountId = connected[detectedService.id]?.firstOrNull()
-                        ?: error("${detectedService.name} is not connected. Connect it first.")
+                    val accountId = connected[detectedServiceForCache.id]?.firstOrNull()
+                        ?: error("${detectedServiceForCache.name} is not connected. Connect it first.")
                     val normalizedCached = resolveContactParams(cachedActionId, cachedParams)
                     return@runCatching executeAction(
                         cachedActionId, normalizedCached, accountId,
-                        serviceId = detectedService.id
+                        serviceId = detectedServiceForCache.id
                     ).getOrThrow()
                 }
             }
