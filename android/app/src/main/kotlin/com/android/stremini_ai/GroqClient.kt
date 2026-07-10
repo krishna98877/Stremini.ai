@@ -66,7 +66,7 @@ HOW TO TALK:
             val connectedSb = StringBuilder()
             val disconnectedSb = StringBuilder()
 
-            for (svc in ALL_SERVICES) {
+            for (svc in ComposioClient.ALL_SERVICES) {
                 val slug = svc.id
                 val capabilities = when (slug) {
                     "gmail" -> "send emails, fetch/read emails, search emails"
