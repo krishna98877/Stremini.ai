@@ -971,7 +971,11 @@ class ComposioClient(
             } catch (e: Exception) {
                 Log.e(TAG, "Error initiating connection for $serviceId", e)
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Connection failed. Please try again.", Toast.LENGTH_LONG).show()
+                    // Show the real error, not a generic "try again" — the
+                    // user needs to know if it's a network issue, invalid key,
+                    // or Composio API change so they can actually fix it.
+                    val msg = e.message ?: e.javaClass.simpleName
+                    Toast.makeText(context, "Connection failed: $msg", Toast.LENGTH_LONG).show()
                 }
             }
         }

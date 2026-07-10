@@ -60,8 +60,25 @@ class ChatCommandCoordinator(
                 }
 
                 if (!hasActionVerb) {
-                    // No action verb — treat as normal chat
-                    sendToBackend(sanitizedMessage, historyToSend)
+                    // No action verb — the user is probably ASKING about the
+                    // service (e.g., "gmail", "is it connected", "what can
+                    // gmail do"). Inject the live connection status into the
+                    // message so the AI can answer definitively instead of
+                    // deflecting with "try sending an email to find out."
+                    val isConn = runCatching {
+                        composioClient.isServiceConnected(detectedService.id)
+                    }.getOrDefault(false)
+                    val isActive = runCatching {
+                        composioClient.isConnectorActive(detectedService.id)
+                    }.getOrDefault(false)
+                    val statusHint = if (isConn && isActive) {
+                        "[System: ${detectedService.name} is CONNECTED and toggled ON. The user can use it right now.]"
+                    } else if (isConn && !isActive) {
+                        "[System: ${detectedService.name} is CONNECTED but toggled OFF. Tell the user to flip the toggle ON in the connectors panel.]"
+                    } else {
+                        "[System: ${detectedService.name} is NOT CONNECTED. Tell the user to tap the plug icon and connect it.]"
+                    }
+                    sendToBackend("$statusHint\nUser: $sanitizedMessage", historyToSend)
                     return@launch
                 }
 
