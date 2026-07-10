@@ -64,6 +64,21 @@ data class ServiceDef(
     val iconRes: Int,
 )
 
+/**
+ * Safe JSON parser — wraps JSONObject() so non-JSON responses (compressed
+ * bodies, proxy HTML errors, rate-limit pages) don't crash the app with
+ * a garbled "Value ... cannot be converted to JSONObject" message.
+ *
+ * Returns null on parse failure instead of throwing. Callers should check
+ * for null and surface a real error message.
+ */
+internal fun parseJsonOrNull(raw: String): JSONObject? = try {
+    JSONObject(raw)
+} catch (e: org.json.JSONException) {
+    Log.w("ComposioClient", "Non-JSON response (first 200 chars): ${raw.take(200)}")
+    null
+}
+
 class ComposioClient(
     private val context: Context,
     externalScope: CoroutineScope? = null
@@ -349,7 +364,7 @@ class ComposioClient(
             val client = secureHttpClient(connectTimeoutSeconds = 10L, readTimeoutSeconds = 15L, useCase = "composio")
             client.newCall(request).execute().use { response ->
                 val respBody = response.body?.string() ?: "{}"
-                val json = JSONObject(respBody)
+                val json = parseJsonOrNull(respBody) ?: error("Invalid response from Composio server")
                 val sid = json.optString("id").ifBlank {
                     json.optJSONObject("data")?.optString("id") ?: ""
                 }
@@ -753,7 +768,7 @@ class ComposioClient(
                 if (!response.isSuccessful) return@use emptyMap<String, List<String>>()
                 handleSessionError(response.code)
                 val body = response.body?.string() ?: return@use emptyMap<String, List<String>>()
-                val json = JSONObject(body)
+                val json = parseJsonOrNull(body) ?: error("Invalid response from Composio server")
                 val accounts = json.optJSONArray("items") ?: return@use emptyMap<String, List<String>>()
                 val result = mutableMapOf<String, MutableList<String>>()
                 for (i in 0 until accounts.length()) {
@@ -797,7 +812,7 @@ class ComposioClient(
             val client = secureHttpClient(connectTimeoutSeconds = 10L, readTimeoutSeconds = 15L, useCase = "composio")
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
-                    val json = JSONObject(response.body?.string() ?: "{}")
+                    val json = parseJsonOrNull(response.body?.string() ?: "") ?: error("Invalid response from Composio server")
                     json.optString("token").takeIf { it.isNotBlank() }
                 } else null
             }
@@ -916,7 +931,7 @@ class ComposioClient(
                 val client = secureHttpClient(connectTimeoutSeconds = 10L, readTimeoutSeconds = 15L, useCase = "composio")
                 client.newCall(request).execute().use { resp ->
                     val respBody = resp.body?.string() ?: "{}"
-                    val json = JSONObject(respBody)
+                    val json = parseJsonOrNull(respBody) ?: error("Invalid response from Composio server")
                     val authUrl = json.optString("redirect_url").ifBlank { json.optString("redirectUrl") }
                     if (authUrl.isNotBlank()) {
                         withContext(Dispatchers.Main) {
@@ -1418,7 +1433,7 @@ class ComposioClient(
                 } else {
                     rawBody
                 }
-                val json = JSONObject(respBody)
+                val json = parseJsonOrNull(respBody) ?: error("Invalid response from Composio server")
                 val resultData = json.optJSONObject("result")
                     ?: json.optJSONObject("data")
                     ?: json
