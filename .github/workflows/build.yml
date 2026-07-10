@@ -54,9 +54,13 @@ jobs:
       - name: Build APK
         run: flutter build apk --release --dart-define=GROQ_API_KEY=${{ env.GROQ_KEY }}
 
+      - name: Rename APK to stremini-final
+        run: |
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/stremini-final.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: stremini-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: stremini-final
+          path: build/app/outputs/flutter-apk/stremini-final.apk
           retention-days: 30
