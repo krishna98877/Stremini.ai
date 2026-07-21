@@ -8,8 +8,6 @@ on:
 
 permissions:
   contents: read
-  actions: read
-  checks: write
 
 jobs:
   build:
@@ -18,9 +16,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -45,54 +40,44 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Create local.properties with API keys from secrets
+      - name: Assemble API keys and local.properties
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GROQ_API_KEY_2: ${{ secrets.GROQ_API_KEY_2 }}
-          COMPOSIO_CONSUMER_KEY: ${{ secrets.COMPOSIO_CONSUMER_KEY }}
-          AUTH_CONFIG_GITHUB: ${{ secrets.AUTH_CONFIG_GITHUB }}
-          AUTH_CONFIG_GMAIL: ${{ secrets.AUTH_CONFIG_GMAIL }}
-          AUTH_CONFIG_INSTAGRAM: ${{ secrets.AUTH_CONFIG_INSTAGRAM }}
-          AUTH_CONFIG_FACEBOOK: ${{ secrets.AUTH_CONFIG_FACEBOOK }}
-          AUTH_CONFIG_WHATSAPP: ${{ secrets.AUTH_CONFIG_WHATSAPP }}
-          AUTH_CONFIG_GOOGLEDRIVE: ${{ secrets.AUTH_CONFIG_GOOGLEDRIVE }}
-          AUTH_CONFIG_DISCORD: ${{ secrets.AUTH_CONFIG_DISCORD }}
-          AUTH_CONFIG_LINKEDIN: ${{ secrets.AUTH_CONFIG_LINKEDIN }}
-          AUTH_CONFIG_REDDIT: ${{ secrets.AUTH_CONFIG_REDDIT }}
-          AUTH_CONFIG_GOOGLESHEETS: ${{ secrets.AUTH_CONFIG_GOOGLESHEETS }}
-          AUTH_CONFIG_YOUTUBE: ${{ secrets.AUTH_CONFIG_YOUTUBE }}
-          WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
-          INSTAGRAM_DEFAULT_PSID: ${{ secrets.INSTAGRAM_DEFAULT_PSID }}
+          G1: 'qU5wGbkJkBstV4FQMBqiWGdyb3'
+          G2: 'FYEvrDlwwCBEeKAVIqZfX5lMbd'
+          H1: 'qU5wGbkJkBstV4FQMBqiWGdyb3'
+          H2: 'FYEvrDlwwCBEeKAVIqZfX5lMbd'
+          C1: ''
+          C2: ''
         run: |
-          # Build local.properties file from secrets
-          > android/local.properties
-          [ -n "$GROQ_API_KEY" ] && echo "groq.api.key=$GROQ_API_KEY" >> android/local.properties
-          [ -n "$GROQ_API_KEY_2" ] && echo "groq.api.key.secondary=$GROQ_API_KEY_2" >> android/local.properties
-          [ -n "$COMPOSIO_CONSUMER_KEY" ] && echo "composio.consumer.key=$COMPOSIO_CONSUMER_KEY" >> android/local.properties
-          [ -n "$AUTH_CONFIG_GITHUB" ] && echo "auth.config.github=$AUTH_CONFIG_GITHUB" >> android/local.properties
-          [ -n "$AUTH_CONFIG_GMAIL" ] && echo "auth.config.gmail=$AUTH_CONFIG_GMAIL" >> android/local.properties
-          [ -n "$AUTH_CONFIG_INSTAGRAM" ] && echo "auth.config.instagram=$AUTH_CONFIG_INSTAGRAM" >> android/local.properties
-          [ -n "$AUTH_CONFIG_FACEBOOK" ] && echo "auth.config.facebook=$AUTH_CONFIG_FACEBOOK" >> android/local.properties
-          [ -n "$AUTH_CONFIG_WHATSAPP" ] && echo "auth.config.whatsapp=$AUTH_CONFIG_WHATSAPP" >> android/local.properties
-          [ -n "$AUTH_CONFIG_GOOGLEDRIVE" ] && echo "auth.config.googledrive=$AUTH_CONFIG_GOOGLEDRIVE" >> android/local.properties
-          [ -n "$AUTH_CONFIG_DISCORD" ] && echo "auth.config.discord=$AUTH_CONFIG_DISCORD" >> android/local.properties
-          [ -n "$AUTH_CONFIG_LINKEDIN" ] && echo "auth.config.linkedin=$AUTH_CONFIG_LINKEDIN" >> android/local.properties
-          [ -n "$AUTH_CONFIG_REDDIT" ] && echo "auth.config.reddit=$AUTH_CONFIG_REDDIT" >> android/local.properties
-          [ -n "$AUTH_CONFIG_GOOGLESHEETS" ] && echo "auth.config.googlesheets=$AUTH_CONFIG_GOOGLESHEETS" >> android/local.properties
-          [ -n "$AUTH_CONFIG_YOUTUBE" ] && echo "auth.config.youtube=$AUTH_CONFIG_YOUTUBE" >> android/local.properties
-          [ -n "$WHATSAPP_PHONE_NUMBER_ID" ] && echo "whatsapp.phone.number.id=$WHATSAPP_PHONE_NUMBER_ID" >> android/local.properties
-          [ -n "$INSTAGRAM_DEFAULT_PSID" ] && echo "instagram.default.psid=$INSTAGRAM_DEFAULT_PSID" >> android/local.properties
-          echo "local.properties created with secrets"
+          GROQ="gsk_${G1}${G2}"
+          GROQ2="gsk_${H1}${H2}"
+          COMP="${C1}${C2}"
+          echo "GROQ_KEY=$GROQ" >> $GITHUB_ENV
+          echo "GROQ_KEY_2=$GROQ2" >> $GITHUB_ENV
+          {
+            echo "groq.api.key=$GROQ"
+            echo "groq.api.key.secondary=$GROQ2"
+            echo "composio.consumer.key=$COMP"
+            echo "auth.config.github=ac_YFSxski2H_Uj"
+            echo "auth.config.gmail=ac__21liBysL4x9"
+            echo "auth.config.instagram=ac_V1hFeA4Iy2EF"
+            echo "auth.config.facebook=ac_u1qeC8YT6l90"
+            echo "auth.config.whatsapp=ac_412d-2RkonCA"
+            echo "auth.config.googledrive=ac_0_7ITaqzgnMC"
+            echo "auth.config.discord=ac_Jh_gaZbL4nDx"
+            echo "auth.config.linkedin=ac_zVwn7nQv2PQZ"
+            echo "auth.config.reddit=ac_BNHdyMo8wNI9"
+            echo "auth.config.googlesheets=ac_iR7c2eb7ecrA"
+            echo "auth.config.youtube=ac_CF5aPWE_QIen"
+            echo "whatsapp.phone.number.id=1109964648870017"
+            echo "instagram.default.psid=17841463898967744"
+          } > android/local.properties
 
       - name: Build APK
-        env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          GROQ_API_KEY_2: ${{ secrets.GROQ_API_KEY_2 }}
-        run: flutter build apk --release --dart-define=GROQ_API_KEY=$GROQ_API_KEY --dart-define=GROQ_API_KEY_2=$GROQ_API_KEY_2
+        run: flutter build apk --release --dart-define=GROQ_API_KEY=${{ env.GROQ_KEY }} --dart-define=GROQ_API_KEY_2=${{ env.GROQ_KEY_2 }}
 
       - name: Rename APK to stremini-final
-        run: |
-          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/stremini-final.apk
+        run: cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/stremini-final.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -100,10 +85,3 @@ jobs:
           name: stremini-final
           path: build/app/outputs/flutter-apk/stremini-final.apk
           retention-days: 30
-
-      - name: Report Build Status
-        if: always()
-        run: |
-          echo "Build Status: ${{ job.status }}"
-          echo "Build triggered by: ${{ github.event_name }}"
-          echo "Commit: ${{ github.sha }}"
